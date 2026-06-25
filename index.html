@@ -284,6 +284,48 @@ input:focus,select:focus{border-color:var(--verde);box-shadow:0 0 0 3px rgba(29,
 </div>
 
 <script>
+const PERFIS={
+  '1234amber':{tipo:'gestor',nome:'Gestor 1'},
+  '12345amber':{tipo:'gestor',nome:'Gestor 2'},
+  'VD@7mx2':{tipo:'vendedor',nome:'Vendedor 1'},
+  'KP#4nt8':{tipo:'vendedor',nome:'Vendedor 2'},
+  'ZR@9bw3':{tipo:'vendedor',nome:'Vendedor 3'},
+  'FG#5qs6':{tipo:'vendedor',nome:'Vendedor 4'},
+  'HJ@2yk1':{tipo:'vendedor',nome:'Vendedor 5'},
+};
+let perfilAtual=null;
+
+function fazerLogin(){
+  const senha=document.getElementById('login-senha').value.trim();
+  const perfil=PERFIS[senha];
+  if(!perfil){
+    document.getElementById('login-error').style.display='block';
+    document.getElementById('login-senha').value='';
+    return;
+  }
+  perfilAtual=perfil;
+  document.getElementById('login-screen').style.display='none';
+  // badge perfil
+  const badge=document.createElement('span');
+  badge.className='login-perfil-badge badge-'+perfil.tipo;
+  badge.textContent=perfil.nome;
+  document.getElementById('last-save').insertAdjacentElement('afterend',badge);
+  const btnSair=document.createElement('button');
+  btnSair.className='btn btn-sm';btnSair.textContent='Sair';btnSair.style.fontSize='11px';
+  btnSair.onclick=()=>location.reload();
+  badge.insertAdjacentElement('afterend',btnSair);
+  // restringir vendedor
+  if(perfil.tipo!=='gestor'){
+    document.querySelectorAll('.nav-btn').forEach(b=>{
+      const t=b.getAttribute('onclick')||'';
+      if(t.includes('boletos')||t.includes('produtos'))b.style.display='none';
+    });
+    const csv=document.querySelector('button[onclick="exportCSV()"]');
+    if(csv)csv.style.display='none';
+  }
+  load();renderAll();
+}
+
 const KEY='amber-v5';
 let db={produtos:[],movs:[],boletos:[]};
 let editIdx=null;
