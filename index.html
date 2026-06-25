@@ -53,6 +53,7 @@ input:focus,select:focus{border-color:var(--verde);box-shadow:0 0 0 3px rgba(29,
 .stock-bar{height:4px;background:var(--border);border-radius:2px;margin-top:4px;}
 .stock-bar-fill{height:100%;border-radius:2px;}
 .empty{text-align:center;padding:40px;color:var(--text3);font-size:13px;}
+.vendedor-mode .col-gestor{display:none!important;}
 .mes-header td{background:var(--bg)!important;font-size:11px!important;font-weight:600!important;color:var(--text3)!important;text-transform:uppercase!important;letter-spacing:.6px!important;padding:10px 12px 4px!important;}
 .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:200;align-items:center;justify-content:center;}
 .modal-overlay.open{display:flex;}
@@ -139,7 +140,7 @@ input:focus,select:focus{border-color:var(--verde);box-shadow:0 0 0 3px rgba(29,
   </div>
   <div class="card">
     <div class="table-wrap"><table id="tbl-estoque">
-      <thead><tr><th style="width:40px">#</th><th style="width:90px">Marca</th><th>Produto</th><th style="width:110px">Especificação</th><th style="width:80px">Linha</th><th style="width:45px">Un.</th><th style="width:70px">Qtd</th><th style="width:50px">Mín.</th><th style="width:50px">Máx.</th><th style="width:90px">Custo</th><th style="width:90px">Atacado</th><th style="width:90px">Status</th><th style="width:60px"></th></tr></thead>
+      <thead><tr><th style="width:40px">#</th><th style="width:90px">Marca</th><th>Produto</th><th style="width:110px">Especificação</th><th style="width:80px">Linha</th><th style="width:45px">Un.</th><th style="width:70px">Qtd</th><th style="width:50px">Mín.</th><th style="width:50px">Máx.</th><th style="width:90px" class="col-gestor">Custo</th><th style="width:90px" class="col-gestor">Atacado</th><th style="width:90px">Status</th><th style="width:60px"></th></tr></thead>
       <tbody></tbody>
     </table></div>
   </div>
@@ -272,8 +273,8 @@ input:focus,select:focus{border-color:var(--verde);box-shadow:0 0 0 3px rgba(29,
       <div class="field"><label>Qtd atual</label><input id="e-qtd" type="number"></div>
       <div class="field"><label>Qtd mínima</label><input id="e-min" type="number"></div>
       <div class="field"><label>Qtd máxima</label><input id="e-max" type="number"></div>
-      <div class="field"><label>Preço custo (R$)</label><input id="e-custo" type="number" step="0.01"></div>
-      <div class="field"><label>Preço atacado (R$)</label><input id="e-atacado" type="number" step="0.01"></div>
+      <div class="field col-gestor"><label>Preço custo (R$)</label><input id="e-custo" type="number" step="0.01"></div>
+      <div class="field col-gestor"><label>Preço atacado (R$)</label><input id="e-atacado" type="number" step="0.01"></div>
       <div class="field"><label>Preço atualizado (R$)</label><input id="e-preco" type="number" step="0.01"></div>
     </div>
     <div class="modal-footer">
@@ -316,6 +317,7 @@ function fazerLogin(){
   badge.insertAdjacentElement('afterend',btnSair);
   // restringir vendedor
   if(perfil.tipo!=='gestor'){
+    document.body.classList.add('vendedor-mode');
     document.querySelectorAll('.nav-btn').forEach(b=>{
       const t=b.getAttribute('onclick')||'';
       if(t.includes('boletos')||t.includes('produtos'))b.style.display='none';
@@ -510,8 +512,8 @@ function renderEstoque(){
       <td><div style="font-weight:600">${p.qtd}</div><div class="stock-bar"><div class="stock-bar-fill" style="width:${pct}%;background:${barColor}"></div></div></td>
       <td style="color:var(--text3)">${p.min}</td>
       <td style="color:var(--text3)">${p.max}</td>
-      <td style="color:var(--text3)">${p.custo?fmt(p.custo):'—'}</td>
-      <td>${p.atacado?fmt(p.atacado):'—'}</td>
+      <td style="color:var(--text3)" class="col-gestor">${p.custo?fmt(p.custo):'—'}</td>
+      <td class="col-gestor">${p.atacado?fmt(p.atacado):'—'}</td>
       <td>${badgeStatus(p)}</td>
       <td>${(!perfilAtual||perfilAtual.tipo==='gestor')?'<button class="btn btn-sm" onclick="openEdit('+idx+')">Editar</button>':''}</td>
     </tr>`;
