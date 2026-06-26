@@ -321,6 +321,24 @@ input:focus,select:focus{border-color:var(--verde);box-shadow:0 0 0 3px rgba(29,
     </div>
   </div>
 </div>
+
+<!-- MODAL VINCULAR PRODUTO -->
+<div class="modal-overlay" id="modal-vincular">
+  <div class="modal" style="width:560px">
+    <div class="modal-title">Dar entrada no estoque</div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:12px;" id="vincular-desc"></div>
+    <div class="field" style="margin-bottom:12px;">
+      <label>Buscar produto no estoque</label>
+      <input id="vincular-busca" placeholder="Digite para filtrar..." oninput="filtrarVincular()">
+    </div>
+    <div id="vincular-lista" style="max-height:240px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:12px;"></div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:8px;">Ou crie um novo produto:</div>
+    <button class="btn btn-sm" onclick="vincularNovo()" style="margin-bottom:4px;">+ Criar novo produto no estoque</button>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModalVincular()">Cancelar</button>
+    </div>
+  </div>
+</div>
 </main>
 
 <!-- MODAL EDITAR -->
@@ -386,7 +404,7 @@ function fazerLogin(){
   load();renderAll();
 }
 
-const KEY='amber-v10';
+const KEY='amber-v11';
 let db={produtos:[],movs:[],boletos:[]};
 let editIdx=null;
 
@@ -911,129 +929,98 @@ function removerCompra(i){
 }
 
 
+let _vincularCompraIdx = null;
+let _vincularMarcar = false;
+
 function darEntradaEstoque(idx) {
-  const c = db.compras[idx];
-  if (!c) return;
-  const descLower = c.desc.toLowerCase();
-  let prodEncontrado = db.produtos.find(p =>
-    descLower.includes(p.nome.toLowerCase()) ||
-    p.nome.toLowerCase().includes(descLower.split(' ').slice(0,3).join(' '))
+  _vincularCompraIdx = idx;
+  _vincularMarcar = false;
+  abrirModalVincular();
+}
+
+function abrirModalVincular() {
+  const c = db.compras[_vincularCompraIdx];
+  document.getElementById('vincular-desc').innerHTML =
+    '<strong>' + c.desc + '</strong> — ' + c.qtd + ' ' + c.un +
+    (c.vcompra ? ' | Custo unit.: R$ ' + c.vcompra.toFixed(2).replace('.',',') : '');
+  document.getElementById('vincular-busca').value = '';
+  filtrarVincular();
+  document.getElementById('modal-vincular').classList.add('open');
+}
+
+function filtrarVincular() {
+  const busca = document.getElementById('vincular-busca').value.toLowerCase();
+  const lista = document.getElementById('vincular-lista');
+  const ps = db.produtos.filter(p =>
+    !busca || (p.nome + ' ' + p.espec + ' ' + p.marca).toLowerCase().includes(busca)
   );
-  if (prodEncontrado) {
-    const qtdAntes = prodEncontrado.qtd;
-    prodEncontrado.qtd += c.qtd;
-    db.movs.push({
-      data: new Date().toLocaleDateString('pt-BR'),
-      prod: prodEncontrado.nome,
-      espec: prodEncontrado.espec,
-      tipo: 'Entrada',
-      qtd: c.qtd,
-      resp: 'Sistema',
-      empresa: 'Entrada manual via Compras',
-      cnpj: '—',
-      valor: (c.vcompra||0)*c.qtd,
-      pgto: '—',
-      obs: 'Entrada manual — Cód: ' + c.cod
-    });
-    save(); renderAll();
-    alert('✓ ' + c.qtd + ' unidades adicionadas ao estoque de "' + prodEncontrado.nome + '"\nAnterior: ' + qtdAntes + ' → Novo: ' + prodEncontrado.qtd);
-  } else {
-    const confirmCriar = confirm(
-      'Produto não encontrado no estoque.\n\nDescrição: ' + c.desc + '\nQuantidade: ' + c.qtd + ' ' + c.un + '\n\nDeseja criar um novo produto no estoque?'
-    );
-    if (!confirmCriar) return;
-    const novoProd = {
-      marca: '—', nome: c.desc, espec: c.un, linha: 'OUTRO', unid: c.un,
-      qtd: c.qtd, min: 0, max: 0, custo: c.vcompra||0, atacado: 0, preco: c.vvenda||0
-    };
-    db.produtos.push(novoProd);
-    db.movs.push({
-      data: new Date().toLocaleDateString('pt-BR'),
-      prod: novoProd.nome, espec: novoProd.espec, tipo: 'Entrada', qtd: c.qtd,
-      resp: 'Sistema', empresa: 'Novo produto via Compras', cnpj: '—',
-      valor: (c.vcompra||0)*c.qtd, pgto: '—', obs: 'Criado via Compras — Cód: ' + c.cod
-    });
-    save(); renderAll();
-    alert('✓ Produto criado e ' + c.qtd + ' unidades adicionadas ao estoque!');
+  if (!ps.length) {
+    lista.innerHTML = '<div class="empty" style="padding:16px">Nenhum produto encontrado.</div>';
+    return;
   }
+  lista.innerHTML = ps.map((p, i) => {
+    const idx = db.produtos.indexOf(p);
+    return `<div onclick="vincularProduto(${idx})" style="padding:10px 12px;cursor:pointer;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;" onmouseover="this.style.background='#f5f5f3'" onmouseout="this.style.background=''">
+      <div><strong>${p.nome}</strong> <span style="color:var(--text3)">${p.espec}</span><br><small style="color:var(--text3)">${p.marca} · ${p.linha} · Estoque: ${p.qtd} ${p.unid}</small></div>
+      <button class="btn btn-primary btn-sm" style="font-size:11px">Selecionar</button>
+    </div>`;
+  }).join('');
+}
+
+function vincularProduto(prodIdx) {
+  const c = db.compras[_vincularCompraIdx];
+  const p = db.produtos[prodIdx];
+  const qtdAntes = p.qtd;
+  p.qtd += c.qtd;
+  if (_vincularMarcar) c.data = new Date().toLocaleDateString('pt-BR');
+  db.movs.push({
+    data: new Date().toLocaleDateString('pt-BR'),
+    prod: p.nome, espec: p.espec, tipo: 'Entrada', qtd: c.qtd,
+    resp: 'Sistema', empresa: _vincularMarcar ? 'Recebimento via Compras' : 'Entrada manual via Compras',
+    cnpj: '—', valor: (c.vcompra||0)*c.qtd, pgto: '—',
+    obs: 'Cód: ' + c.cod
+  });
+  save(); closeModalVincular(); renderAll();
+  alert('✓ ' + c.qtd + ' unidades adicionadas a "' + p.nome + ' ' + p.espec + '"\nAnterior: ' + qtdAntes + ' → Novo: ' + p.qtd);
+}
+
+function vincularNovo() {
+  const c = db.compras[_vincularCompraIdx];
+  const confirmCriar = confirm('Criar novo produto "' + c.desc + '" com ' + c.qtd + ' ' + c.un + ' no estoque?');
+  if (!confirmCriar) return;
+  const novoProd = {
+    marca: '—', nome: c.desc, espec: c.un, linha: 'RESISTÊNCIA', unid: c.un,
+    qtd: c.qtd, min: 0, max: 0, custo: c.vcompra||0, atacado: 0, preco: c.vvenda||0
+  };
+  db.produtos.push(novoProd);
+  if (_vincularMarcar) c.data = new Date().toLocaleDateString('pt-BR');
+  db.movs.push({
+    data: new Date().toLocaleDateString('pt-BR'),
+    prod: novoProd.nome, espec: novoProd.espec, tipo: 'Entrada', qtd: c.qtd,
+    resp: 'Sistema', empresa: 'Novo produto via Compras', cnpj: '—',
+    valor: (c.vcompra||0)*c.qtd, pgto: '—', obs: 'Criado via Compras — Cód: ' + c.cod
+  });
+  save(); closeModalVincular(); renderAll();
+  alert('✓ Produto criado com ' + c.qtd + ' unidades no estoque!');
+}
+
+function closeModalVincular() {
+  document.getElementById('modal-vincular').classList.remove('open');
+  _vincularCompraIdx = null;
 }
 
 function marcarRecebido(idx) {
-  const c = db.compras[idx];
-  if (!c) return;
+  _vincularCompraIdx = idx;
+  _vincularMarcar = true;
+  abrirModalVincular();
+}
 
-  // Update data to today
-  c.data = new Date().toLocaleDateString('pt-BR');
-  
-  // Find matching product in estoque
-  const descLower = c.desc.toLowerCase();
-  let prodEncontrado = db.produtos.find(p => 
-    descLower.includes(p.nome.toLowerCase()) || 
-    p.nome.toLowerCase().includes(descLower.split(' ').slice(0,3).join(' '))
-  );
 
-  if (prodEncontrado) {
-    // Update existing product quantity
-    const qtdAntes = prodEncontrado.qtd;
-    prodEncontrado.qtd += c.qtd;
-    // Log movement
-    db.movs.push({
-      data: c.data,
-      prod: prodEncontrado.nome,
-      espec: prodEncontrado.espec,
-      tipo: 'Entrada',
-      qtd: c.qtd,
-      resp: 'Sistema',
-      empresa: 'Compra recebida',
-      cnpj: '—',
-      valor: (c.vcompra || 0) * c.qtd,
-      pgto: '—',
-      obs: 'Entrada via Controle de Compras — Cód: ' + c.cod
-    });
-    save();
-    renderAll();
-    alert('✓ Recebido! ' + c.qtd + ' unidades adicionadas ao estoque de "' + prodEncontrado.nome + '"\nEstoque anterior: ' + qtdAntes + ' → Novo: ' + prodEncontrado.qtd);
-  } else {
-    // Product not found - create new
-    const confirmCriar = confirm(
-      'Produto não encontrado no estoque.\n\n' +
-      'Descrição: ' + c.desc + '\n' +
-      'Quantidade: ' + c.qtd + ' ' + c.un + '\n\n' +
-      'Deseja criar um novo produto no estoque?'
-    );
-    if (!confirmCriar) { save(); renderCompras(); return; }
-    
-    const novoProd = {
-      marca: '—',
-      nome: c.desc,
-      espec: c.un,
-      linha: 'OUTRO',
-      unid: c.un,
-      qtd: c.qtd,
-      min: 0,
-      max: 0,
-      custo: c.vcompra || 0,
-      atacado: 0,
-      preco: c.vvenda || 0
-    };
-    db.produtos.push(novoProd);
-    db.movs.push({
-      data: c.data,
-      prod: novoProd.nome,
-      espec: novoProd.espec,
-      tipo: 'Entrada',
-      qtd: c.qtd,
-      resp: 'Sistema',
-      empresa: 'Compra recebida',
-      cnpj: '—',
-      valor: (c.vcompra || 0) * c.qtd,
-      pgto: '—',
-      obs: 'Novo produto criado via Controle de Compras — Cód: ' + c.cod
-    });
-    save();
-    renderAll();
-    alert('✓ Produto criado e ' + c.qtd + ' unidades adicionadas ao estoque!');
-  }
+function excluirProduto(idx) {
+  const p = db.produtos[idx];
+  if (!confirm('Excluir "' + p.nome + ' ' + p.espec + '" do estoque?\nEsta ação não pode ser desfeita.')) return;
+  db.produtos.splice(idx, 1);
+  save(); renderAll();
 }
 
 </script>
