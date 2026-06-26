@@ -387,7 +387,7 @@ function fazerLogin(){
   load();renderAll();
 }
 
-const KEY='amber-v7';
+const KEY='amber-v8';
 let db={produtos:[],movs:[],boletos:[]};
 let editIdx=null;
 
@@ -877,7 +877,10 @@ function renderCompras(){
       <td>${c.vvenda?fmt(c.vvenda):'—'}</td>
       <td style="color:var(--text3)">${c.data||'—'}</td>
       <td>${statusBadge}</td>
-      <td><button class="btn btn-danger btn-sm" onclick="removerCompra(${realIdx})">✕</button></td>
+      <td style="white-space:nowrap;display:flex;gap:4px;">
+        ${aguardando ? `<button class="btn btn-sm" style="background:#E6F1FB;color:#0C447C;border-color:#C3D9F5;font-size:11px;" onclick="marcarRecebido(${realIdx})">✓ Recebido</button>` : ''}
+        <button class="btn btn-danger btn-sm" onclick="removerCompra(${realIdx})">✕</button>
+      </td>
     </tr>`;
   }).join('');
 }
@@ -902,6 +905,85 @@ function salvarCompra(){
 function removerCompra(i){
   if(!confirm('Remover esta compra?'))return;
   db.compras.splice(i,1);save();renderCompras();
+}
+
+
+function marcarRecebido(idx) {
+  const c = db.compras[idx];
+  if (!c) return;
+
+  // Update data to today
+  c.data = new Date().toLocaleDateString('pt-BR');
+  
+  // Find matching product in estoque
+  const descLower = c.desc.toLowerCase();
+  let prodEncontrado = db.produtos.find(p => 
+    descLower.includes(p.nome.toLowerCase()) || 
+    p.nome.toLowerCase().includes(descLower.split(' ').slice(0,3).join(' '))
+  );
+
+  if (prodEncontrado) {
+    // Update existing product quantity
+    const qtdAntes = prodEncontrado.qtd;
+    prodEncontrado.qtd += c.qtd;
+    // Log movement
+    db.movs.push({
+      data: c.data,
+      prod: prodEncontrado.nome,
+      espec: prodEncontrado.espec,
+      tipo: 'Entrada',
+      qtd: c.qtd,
+      resp: 'Sistema',
+      empresa: 'Compra recebida',
+      cnpj: '—',
+      valor: (c.vcompra || 0) * c.qtd,
+      pgto: '—',
+      obs: 'Entrada via Controle de Compras — Cód: ' + c.cod
+    });
+    save();
+    renderAll();
+    alert('✓ Recebido! ' + c.qtd + ' unidades adicionadas ao estoque de "' + prodEncontrado.nome + '"\nEstoque anterior: ' + qtdAntes + ' → Novo: ' + prodEncontrado.qtd);
+  } else {
+    // Product not found - create new
+    const confirmCriar = confirm(
+      'Produto não encontrado no estoque.\n\n' +
+      'Descrição: ' + c.desc + '\n' +
+      'Quantidade: ' + c.qtd + ' ' + c.un + '\n\n' +
+      'Deseja criar um novo produto no estoque?'
+    );
+    if (!confirmCriar) { save(); renderCompras(); return; }
+    
+    const novoProd = {
+      marca: '—',
+      nome: c.desc,
+      espec: c.un,
+      linha: 'OUTRO',
+      unid: c.un,
+      qtd: c.qtd,
+      min: 0,
+      max: 0,
+      custo: c.vcompra || 0,
+      atacado: 0,
+      preco: c.vvenda || 0
+    };
+    db.produtos.push(novoProd);
+    db.movs.push({
+      data: c.data,
+      prod: novoProd.nome,
+      espec: novoProd.espec,
+      tipo: 'Entrada',
+      qtd: c.qtd,
+      resp: 'Sistema',
+      empresa: 'Compra recebida',
+      cnpj: '—',
+      valor: (c.vcompra || 0) * c.qtd,
+      pgto: '—',
+      obs: 'Novo produto criado via Controle de Compras — Cód: ' + c.cod
+    });
+    save();
+    renderAll();
+    alert('✓ Produto criado e ' + c.qtd + ' unidades adicionadas ao estoque!');
+  }
 }
 
 </script>
