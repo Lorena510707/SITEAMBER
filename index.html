@@ -107,7 +107,7 @@ input:focus,select:focus{border-color:var(--verde);box-shadow:0 0 0 3px rgba(29,
   <button class="nav-btn" onclick="showTab('estoque',this)">Estoque</button>
   <button class="nav-btn" onclick="showTab('movimentar',this)">Movimentar</button>
   <button class="nav-btn" onclick="showTab('historico',this)">Histórico</button>
-  <button class="nav-btn" onclick="showTab('boletos',this)">Boletos</button>
+  <button class="nav-btn" onclick="showTab('boletos',this)">Recebimentos</button>
   <button class="nav-btn" onclick="showTab('produtos',this)">+ Produto</button>
   <button class="nav-btn col-gestor" onclick="showTab('compras',this)">Compras</button>
 </nav>
@@ -217,37 +217,63 @@ input:focus,select:focus{border-color:var(--verde);box-shadow:0 0 0 3px rgba(29,
   </div>
 </div>
 
-<!-- BOLETOS -->
+<!-- BOLETOS/RECEBIMENTOS -->
 <div id="tab-boletos" class="section">
-  <div class="boleto-grid" id="boleto-colunas"></div>
+  <!-- Filtros -->
+  <div class="search-bar" style="margin-bottom:14px">
+    <select id="rec-mes" onchange="renderBoletos()" style="max-width:180px">
+      <option value="">Todos os meses</option>
+    </select>
+    <select id="rec-status" onchange="renderBoletos()" style="max-width:180px">
+      <option value="">A receber + Recebido</option>
+      <option value="receber">Só a receber</option>
+      <option value="recebido">Só recebido</option>
+    </select>
+    <select id="rec-pgto" onchange="renderBoletos()" style="max-width:180px">
+      <option value="">Todas as formas</option>
+      <option>Boleto</option><option>PIX</option><option>Dinheiro</option>
+      <option>Cartão de crédito</option><option>Cartão de débito</option><option>Transferência</option>
+    </select>
+  </div>
+
+  <!-- Resumo geral -->
+  <div id="rec-resumo" style="margin-bottom:16px"></div>
+
+  <!-- Tabela unificada por mês -->
+  <div id="boleto-colunas"></div>
+
+  <!-- Formulário manual -->
   <div class="card" style="margin-top:16px">
-    <div class="card-header"><span class="card-title">Registrar recebimento</span></div>
+    <div class="card-header"><span class="card-title">+ Lançar recebimento manualmente</span></div>
     <div class="card-body">
       <div class="form-grid">
-        <div class="field"><label>Data</label><input id="b-venc" type="date"></div>
+        <div class="field"><label>Data / Vencimento</label><input id="b-venc" type="date"></div>
         <div class="field"><label>Cliente</label><input id="b-cli" placeholder="Nome do cliente"></div>
         <div class="field"><label>Valor (R$)</label><input id="b-val" type="number" step="0.01" placeholder="0,00"></div>
         <div class="field"><label>Forma de pagamento</label>
           <select id="b-pgto">
-            <option value="Boleto">Boleto</option>
-            <option value="PIX">PIX</option>
-            <option value="Dinheiro">Dinheiro</option>
-            <option value="Cartão de crédito">Cartão de crédito</option>
-            <option value="Cartão de débito">Cartão de débito</option>
-            <option value="Transferência">Transferência</option>
+            <option value="Boleto">Boleto (a receber)</option>
+            <option value="PIX">PIX (recebido)</option>
+            <option value="Dinheiro">Dinheiro (recebido)</option>
+            <option value="Cartão de crédito">Cartão de crédito (recebido)</option>
+            <option value="Cartão de débito">Cartão de débito (recebido)</option>
+            <option value="Transferência">Transferência (recebido)</option>
           </select>
         </div>
       </div>
       <div class="form-grid">
         <div class="field"><label>Mês de referência</label>
           <select id="b-mes">
-            <option>Julho/2026</option><option>Agosto/2026</option><option>Setembro/2026</option>
-            <option>Outubro/2026</option><option>Novembro/2026</option><option>Dezembro/2026</option>
+            <option>Maio/2026</option><option>Junho/2026</option><option>Julho/2026</option>
+            <option>Agosto/2026</option><option>Setembro/2026</option><option>Outubro/2026</option>
+            <option>Novembro/2026</option><option>Dezembro/2026</option>
           </select>
         </div>
-        <div class="field" style="grid-column:1/-1"><label>Observação</label><input id="b-obs" placeholder="NF, referência, cliente..."></div>
+        <div class="field" style="grid-column:1/-1"><label>Observação</label>
+          <input id="b-obs" placeholder="NF, número do pedido, referência...">
+        </div>
       </div>
-      <button class="btn btn-primary" onclick="addBoleto()">+ Registrar recebimento</button>
+      <button class="btn btn-primary" onclick="addBoleto()">+ Lançar</button>
     </div>
   </div>
 </div>
@@ -421,7 +447,7 @@ function fazerLogin(){
   load();renderAll();
 }
 
-const KEY='amber-v14';
+const KEY='amber-v15';
 let db={produtos:[],movs:[],boletos:[]};
 let editIdx=null;
 
@@ -512,15 +538,39 @@ const MOVS_INIT=[
 ];
 
 const BOLETOS_INIT=[
+  // Maio 2026 - recebidos
+  {mes:'Maio/2026',venc:'19/05/2026',cli:'MGTEC',val:8248,pgto:'PIX',obs:'Bella Ducha 127V x150 — Retirada Ok'},
+  {mes:'Maio/2026',venc:'26/05/2026',cli:'Elétrica Shopp',val:5499,pgto:'PIX',obs:'Bella Ducha 220V x100 — PIX Conta Josi'},
+  {mes:'Maio/2026',venc:'26/05/2026',cli:'Elétrica Shopp',val:5299,pgto:'PIX',obs:'Max Ducha 220V x100 — PIX Conta Josi'},
+  {mes:'Maio/2026',venc:'27/05/2026',cli:'MGTEC',val:5299,pgto:'PIX',obs:'Max Ducha 127V x100 — PIX 6.934,67 Josiane'},
+  {mes:'Maio/2026',venc:'27/05/2026',cli:'MGTEC',val:5103,pgto:'PIX',obs:'Top Jet 220V x50 — PIX 3.467,33 Amber'},
+  // Junho 2026 - recebidos
+  {mes:'Junho/2026',venc:'03/06/2026',cli:'MGTEC',val:2649.5,pgto:'Cartão de crédito',obs:'Bella Ducha 127V x150 — Pago em loja'},
+  {mes:'Junho/2026',venc:'03/06/2026',cli:'MGTEC',val:8248.5,pgto:'Cartão de crédito',obs:'Max Ducha 127V x50 — Pago em loja'},
+  {mes:'Junho/2026',venc:'10/06/2026',cli:'Eletrowal LTDA',val:264.95,pgto:'PIX',obs:'Max Ducha 127V x5'},
+  {mes:'Junho/2026',venc:'10/06/2026',cli:'Eletrowal LTDA',val:274.95,pgto:'PIX',obs:'Bella Ducha 127V x5'},
+  {mes:'Junho/2026',venc:'10/06/2026',cli:'Eletrowal LTDA',val:154.34,pgto:'PIX',obs:'Ducha Advanced 220V x1'},
+  {mes:'Junho/2026',venc:'11/06/2026',cli:'Átila',val:264.95,pgto:'Dinheiro',obs:'Max Ducha 127V x5 — Aguardando depósito'},
+  {mes:'Junho/2026',venc:'11/06/2026',cli:'Átila',val:274.95,pgto:'Dinheiro',obs:'Bella Ducha 127V x5 — Aguardando depósito'},
+  {mes:'Junho/2026',venc:'12/06/2026',cli:'Eletrocarneiro',val:158.97,pgto:'PIX',obs:'Max Ducha 127V x3'},
+  {mes:'Junho/2026',venc:'12/06/2026',cli:'Eletrocarneiro',val:52.99,pgto:'PIX',obs:'Max Ducha 220V x1'},
+  {mes:'Junho/2026',venc:'23/06/2026',cli:'Charles Santana de Lima',val:794.85,pgto:'Dinheiro',obs:'Max Ducha 127V x15 — com Lorena para depósito'},
+  {mes:'Junho/2026',venc:'23/06/2026',cli:'Charles Santana de Lima',val:264.95,pgto:'Dinheiro',obs:'Max Ducha 220V x5 — com Lorena para depósito'},
+  {mes:'Junho/2026',venc:'23/06/2026',cli:'Charles Santana de Lima',val:274.95,pgto:'Dinheiro',obs:'Bella Ducha 127V x5 — com Lorena para depósito'},
+  {mes:'Junho/2026',venc:'23/06/2026',cli:'Charles Santana de Lima',val:164.97,pgto:'Dinheiro',obs:'Bella Ducha 220V x3 — com Lorena para depósito'},
+  {mes:'Junho/2026',venc:'23/06/2026',cli:'RP Material de Construção',val:635.88,pgto:'À vista',obs:'Max Ducha 127V x12'},
+  {mes:'Junho/2026',venc:'23/06/2026',cli:'RP Material de Construção',val:329.94,pgto:'À vista',obs:'Bella Ducha 127V x6'},
+  // Julho 2026 - boletos a receber
   {mes:'Julho/2026',venc:'16/07/2026',cli:'Heletropaulo',val:3545.34,pgto:'Boleto',obs:''},
-  {mes:'Julho/2026',venc:'22/07/2026',cli:'Comercial Mahuacu Ltda',val:1822.08,pgto:'Boleto',obs:''},
-  {mes:'Julho/2026',venc:'24/07/2026',cli:'Agência 2 Irmãos',val:10658.90,pgto:'Boleto',obs:''},
+  {mes:'Julho/2026',venc:'22/07/2026',cli:'Comercial Mahuacu Ltda',val:1822.08,pgto:'Boleto',obs:'Venc. 22/07'},
+  {mes:'Julho/2026',venc:'24/07/2026',cli:'Agência 2 Irmãos',val:10658.90,pgto:'Boleto',obs:'Central Buritis'},
   {mes:'Julho/2026',venc:'10/07/2026',cli:'Eletroferragens França',val:1420.16,pgto:'Boleto',obs:''},
   {mes:'Julho/2026',venc:'25/07/2026',cli:'Eletroferragens França',val:1261.19,pgto:'Boleto',obs:''},
-  {mes:'Julho/2026',venc:'23/07/2026',cli:'Colégio Santa Maria Minas',val:8800.00,pgto:'Boleto',obs:''},
+  {mes:'Julho/2026',venc:'23/07/2026',cli:'Colégio Santa Maria Minas',val:8800.00,pgto:'Boleto',obs:'Chamex 400 resmas'},
+  // Agosto 2026 - boletos a receber
   {mes:'Agosto/2026',venc:'06/08/2026',cli:'Comercial Mahuacu Ltda',val:1822.08,pgto:'Boleto',obs:''},
   {mes:'Agosto/2026',venc:'21/08/2026',cli:'Comercial Mahuacu Ltda',val:1822.08,pgto:'Boleto',obs:''},
-  {mes:'Agosto/2026',venc:'08/08/2026',cli:'Agência 2 Irmãos',val:10658.90,pgto:'Boleto',obs:''},
+  {mes:'Agosto/2026',venc:'08/08/2026',cli:'Agência 2 Irmãos',val:10658.90,pgto:'Boleto',obs:'Central Buritis'},
 ];
 
 function parseDateBR(s){if(!s||s==='—')return new Date(0);const p=s.split('/');if(p.length===3)return new Date(+p[2],+p[1]-1,+p[0]);return new Date(0);}
@@ -691,7 +741,10 @@ function updateBoletoInfo(){
 
 function getMesFromDate(dateStr){
   if(!dateStr)return'Sem data';
-  const d=new Date(dateStr+'T12:00:00');
+  let d;
+  if(dateStr.includes('/'))d=parseDateBR(dateStr);
+  else d=new Date(dateStr+'T12:00:00');
+  if(isNaN(d))return'Sem data';
   const mes=d.toLocaleString('pt-BR',{month:'long'}).replace(/^./,c=>c.toUpperCase());
   return mes+'/'+d.getFullYear();
 }
@@ -734,6 +787,17 @@ function registrarMov(){
     if(parcelasInfo.length>0)obsFinal=(obs?obs+' | ':'')+parcelasInfo.join(', ');
   }
   db.movs.push({data:now,prod:p.nome,espec:p.espec,tipo,qtd,resp,empresa,cnpj,valor,pgto,obs:obsFinal});
+  // Auto-add to recebimentos if it's a sale with payment
+  if(tipo==='Saída'&&valor>0&&pgto&&pgto!=='—'){
+    const mesRec=getMesFromDate(now.split('/').reverse().join('-').replace(/\/g,'-'));
+    if(pgto==='Boleto'){
+      // Boleto parcelas already handled above
+    } else {
+      // PIX, Dinheiro, Cartão - add as received immediately
+      if(!db.boletos)db.boletos=[];
+      db.boletos.push({mes:mesRec,venc:now,cli:empresa||'—',val:valor,pgto,obs:(obsFinal||'').substring(0,80)});
+    }
+  }
   save();
   let msg=`${tipo} de ${qtd} ${p.unid} registrada. Novo estoque: ${p.qtd} ${p.unid}.`;
   if(boletosAdicionados>0)msg+=` ${boletosAdicionados} boleto(s) adicionado(s) automaticamente.`;
@@ -825,42 +889,103 @@ function pgtoColor(pgto){
   if(!pgto||pgto==='Boleto')return{bg:'#E6F1FB',color:'#0C447C'};
   if(pgto==='PIX')return{bg:'#EAF3DE',color:'#27500A'};
   if(pgto==='Dinheiro')return{bg:'#FEF9E7',color:'#7D6608'};
-  if(pgto.includes('Cartão'))return{bg:'#F5EEF8',color:'#6C3483'};
+  if(pgto.includes('Cartão')||pgto.includes('Cartao'))return{bg:'#F5EEF8',color:'#6C3483'};
+  if(pgto==='À vista')return{bg:'#FEF9E7',color:'#7D6608'};
   return{bg:'#F2F3F4',color:'#555'};
 }
 
+function isRecebido(pgto){
+  return pgto && pgto!=='Boleto';
+}
+
+function populateRecMesSelect(){
+  const sel=document.getElementById('rec-mes');if(!sel)return;
+  const cur=sel.value;
+  const meses=[...new Set(db.boletos.map(b=>b.mes))].sort((a,b)=>{
+    const [ma,ya]=a.split('/');const [mb,yb]=b.split('/');
+    const mnames=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+    return (+ya*12+mnames.indexOf(ma))-(+yb*12+mnames.indexOf(mb));
+  });
+  sel.innerHTML='<option value="">Todos os meses</option>'+meses.map(m=>`<option value="${m}" ${m===cur?'selected':''}>${m}</option>`).join('');
+}
+
 function renderBoletos(){
+  populateRecMesSelect();
+  const filtroMes=document.getElementById('rec-mes')?.value||'';
+  const filtroStatus=document.getElementById('rec-status')?.value||'';
+  const filtroPgto=document.getElementById('rec-pgto')?.value||'';
+
+  let boletos=db.boletos.filter(b=>{
+    if(filtroMes&&b.mes!==filtroMes)return false;
+    if(filtroStatus==='receber'&&isRecebido(b.pgto))return false;
+    if(filtroStatus==='recebido'&&!isRecebido(b.pgto))return false;
+    if(filtroPgto&&b.pgto!==filtroPgto)return false;
+    return true;
+  });
+
+  // Global summary
+  const totalGeral=boletos.reduce((s,b)=>s+(b.val||0),0);
+  const totalReceber=boletos.filter(b=>!isRecebido(b.pgto)).reduce((s,b)=>s+(b.val||0),0);
+  const totalRecebido=boletos.filter(b=>isRecebido(b.pgto)).reduce((s,b)=>s+(b.val||0),0);
+  const porPgtoGeral={};
+  boletos.forEach(b=>{const p=b.pgto||'Boleto';porPgtoGeral[p]=(porPgtoGeral[p]||0)+(b.val||0);});
+
+  const resumoEl=document.getElementById('rec-resumo');
+  if(resumoEl){
+    resumoEl.innerHTML=`
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:8px">
+        <div class="metric" style="flex:1;min-width:140px"><div class="metric-label">Total geral</div><div class="metric-value" style="font-size:18px">R$ ${totalGeral.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}</div></div>
+        <div class="metric" style="flex:1;min-width:140px"><div class="metric-label">A receber (boleto)</div><div class="metric-value red" style="font-size:18px">R$ ${totalReceber.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}</div></div>
+        <div class="metric" style="flex:1;min-width:140px"><div class="metric-label">Já recebido</div><div class="metric-value green" style="font-size:18px">R$ ${totalRecebido.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}</div></div>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">
+        ${Object.entries(porPgtoGeral).map(([p,v])=>{const c=pgtoColor(p);return`<span class="badge" style="background:${c.bg};color:${c.color};font-size:12px;padding:4px 10px">${p}: R$ ${v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}</span>`;}).join('')}
+      </div>`;
+  }
+
   const el=document.getElementById('boleto-colunas');if(!el)return;
-  const meses=[...new Set(db.boletos.map(b=>b.mes))];
+  const meses=[...new Set(boletos.map(b=>b.mes))].sort((a,b)=>{
+    const [ma,ya]=a.split('/');const [mb,yb]=b.split('/');
+    const mnames=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+    return (+ya*12+mnames.indexOf(ma))-(+yb*12+mnames.indexOf(mb));
+  });
+
   el.innerHTML=meses.map(mes=>{
-    const bs=db.boletos.filter(b=>b.mes===mes);
-    const total=bs.reduce((s,b)=>s+(b.val||0),0);
-    // Totals per payment method
+    const bs=boletos.filter(b=>b.mes===mes);
+    const totalMes=bs.reduce((s,b)=>s+(b.val||0),0);
+    const aReceberMes=bs.filter(b=>!isRecebido(b.pgto)).reduce((s,b)=>s+(b.val||0),0);
+    const recebidoMes=bs.filter(b=>isRecebido(b.pgto)).reduce((s,b)=>s+(b.val||0),0);
     const porPgto={};
     bs.forEach(b=>{const p=b.pgto||'Boleto';porPgto[p]=(porPgto[p]||0)+(b.val||0);});
-    const resumoPgto=Object.entries(porPgto).map(([p,v])=>{
-      const c=pgtoColor(p);
-      return`<span class="badge" style="background:${c.bg};color:${c.color};margin-right:4px">${p}: R$ ${v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}</span>`;
-    }).join('');
-    return`<div class="card">
-      <div class="card-header">
-        <span class="card-title">A receber — ${mes}</span>
-        <strong style="color:var(--verde)">Total: R$ ${total.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}</strong>
+
+    return`<div class="card" style="margin-bottom:16px">
+      <div class="card-header" style="flex-wrap:wrap;gap:8px">
+        <span class="card-title" style="font-size:14px">${mes}</span>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;font-size:12px">
+          <span>Total: <strong>R$ ${totalMes.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}</strong></span>
+          ${aReceberMes>0?`<span style="color:#A32D2D">A receber: <strong>R$ ${aReceberMes.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}</strong></span>`:''}
+          ${recebidoMes>0?`<span style="color:var(--verde)">Recebido: <strong>R$ ${recebidoMes.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}</strong></span>`:''}
+        </div>
       </div>
-      <div style="padding:8px 16px;border-bottom:1px solid var(--border);display:flex;flex-wrap:wrap;gap:4px;font-size:12px">${resumoPgto}</div>
-      <div class="table-wrap"><table><thead><tr><th>Vencimento</th><th>Cliente</th><th>Pagamento</th><th>Valor</th><th>Obs.</th><th></th></tr></thead>
-      <tbody>${bs.map((b,i)=>{
-        const idx=db.boletos.indexOf(b);
-        const c=pgtoColor(b.pgto||'Boleto');
-        return`<tr>
-          <td>${b.venc}</td>
-          <td>${b.cli}</td>
-          <td><span class="badge" style="background:${c.bg};color:${c.color}">${b.pgto||'Boleto'}</span></td>
-          <td>${fmt(b.val)}</td>
-          <td style="color:var(--text3)">${b.obs||'—'}</td>
-          <td><button class="btn btn-danger btn-sm" onclick="removerBoleto(${idx})">✕</button></td>
-        </tr>`;
-      }).join('')}</tbody></table></div>
+      <div style="padding:8px 16px;border-bottom:1px solid var(--border);display:flex;flex-wrap:wrap;gap:6px">
+        ${Object.entries(porPgto).map(([p,v])=>{const c=pgtoColor(p);return`<span class="badge" style="background:${c.bg};color:${c.color}">${p}: R$ ${v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}</span>`;}).join('')}
+      </div>
+      <div class="table-wrap"><table>
+        <thead><tr><th style="width:90px">Data/Venc.</th><th>Cliente</th><th style="width:120px">Pagamento</th><th style="width:100px">Valor</th><th>Observação</th><th style="width:40px"></th></tr></thead>
+        <tbody>${bs.map(b=>{
+          const idx=db.boletos.indexOf(b);
+          const c=pgtoColor(b.pgto||'Boleto');
+          const receb=isRecebido(b.pgto);
+          return`<tr style="${receb?'':'background:#FFFBF0'}">
+            <td style="color:var(--text3);white-space:nowrap">${b.venc}</td>
+            <td><strong>${b.cli}</strong></td>
+            <td><span class="badge" style="background:${c.bg};color:${c.color}">${b.pgto||'Boleto'}</span></td>
+            <td><strong>${fmt(b.val)}</strong></td>
+            <td style="color:var(--text3)">${b.obs||'—'}</td>
+            <td><button class="btn btn-danger btn-sm" onclick="removerBoleto(${idx})">✕</button></td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table></div>
     </div>`;
   }).join('');
 }
