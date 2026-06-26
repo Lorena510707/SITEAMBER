@@ -386,7 +386,7 @@ function fazerLogin(){
   load();renderAll();
 }
 
-const KEY='amber-v9';
+const KEY='amber-v10';
 let db={produtos:[],movs:[],boletos:[]};
 let editIdx=null;
 
@@ -877,8 +877,11 @@ function renderCompras(){
       <td style="color:var(--text3)">${c.data||'—'}</td>
       <td style="white-space:nowrap">
         ${aguardando
-          ? `<button class="btn btn-sm" style="background:#E6F1FB;color:#0C447C;border-color:#C3D9F5;font-size:11px;width:100%" onclick="marcarRecebido(${realIdx})">✓ Marcar recebido</button>`
-          : `<span class="badge badge-ok" style="display:inline-flex;align-items:center;justify-content:space-between;width:100%">Recebido <button onclick="removerCompra(${realIdx})" style="background:none;border:none;cursor:pointer;color:inherit;font-size:12px;padding:0 0 0 6px">✕</button></span>`
+          ? `<button class="btn btn-sm" style="background:#E6F1FB;color:#0C447C;border-color:#C3D9F5;font-size:11px;width:100%;margin-bottom:3px" onclick="marcarRecebido(${realIdx})">✓ Marcar recebido</button>`
+          : `<div style="display:flex;flex-direction:column;gap:3px">
+              <button class="btn btn-sm" style="background:#EAF3DE;color:#27500A;border-color:#C3E6B0;font-size:11px;width:100%" onclick="darEntradaEstoque(${realIdx})">↑ Dar entrada</button>
+              <span style="display:flex;align-items:center;justify-content:space-between"><span class="badge badge-ok">Recebido</span><button onclick="removerCompra(${realIdx})" style="background:none;border:none;cursor:pointer;color:#888;font-size:12px">✕</button></span>
+            </div>`
         }
       </td>
     </tr>`;
@@ -907,6 +910,53 @@ function removerCompra(i){
   db.compras.splice(i,1);save();renderCompras();
 }
 
+
+function darEntradaEstoque(idx) {
+  const c = db.compras[idx];
+  if (!c) return;
+  const descLower = c.desc.toLowerCase();
+  let prodEncontrado = db.produtos.find(p =>
+    descLower.includes(p.nome.toLowerCase()) ||
+    p.nome.toLowerCase().includes(descLower.split(' ').slice(0,3).join(' '))
+  );
+  if (prodEncontrado) {
+    const qtdAntes = prodEncontrado.qtd;
+    prodEncontrado.qtd += c.qtd;
+    db.movs.push({
+      data: new Date().toLocaleDateString('pt-BR'),
+      prod: prodEncontrado.nome,
+      espec: prodEncontrado.espec,
+      tipo: 'Entrada',
+      qtd: c.qtd,
+      resp: 'Sistema',
+      empresa: 'Entrada manual via Compras',
+      cnpj: '—',
+      valor: (c.vcompra||0)*c.qtd,
+      pgto: '—',
+      obs: 'Entrada manual — Cód: ' + c.cod
+    });
+    save(); renderAll();
+    alert('✓ ' + c.qtd + ' unidades adicionadas ao estoque de "' + prodEncontrado.nome + '"\nAnterior: ' + qtdAntes + ' → Novo: ' + prodEncontrado.qtd);
+  } else {
+    const confirmCriar = confirm(
+      'Produto não encontrado no estoque.\n\nDescrição: ' + c.desc + '\nQuantidade: ' + c.qtd + ' ' + c.un + '\n\nDeseja criar um novo produto no estoque?'
+    );
+    if (!confirmCriar) return;
+    const novoProd = {
+      marca: '—', nome: c.desc, espec: c.un, linha: 'OUTRO', unid: c.un,
+      qtd: c.qtd, min: 0, max: 0, custo: c.vcompra||0, atacado: 0, preco: c.vvenda||0
+    };
+    db.produtos.push(novoProd);
+    db.movs.push({
+      data: new Date().toLocaleDateString('pt-BR'),
+      prod: novoProd.nome, espec: novoProd.espec, tipo: 'Entrada', qtd: c.qtd,
+      resp: 'Sistema', empresa: 'Novo produto via Compras', cnpj: '—',
+      valor: (c.vcompra||0)*c.qtd, pgto: '—', obs: 'Criado via Compras — Cód: ' + c.cod
+    });
+    save(); renderAll();
+    alert('✓ Produto criado e ' + c.qtd + ' unidades adicionadas ao estoque!');
+  }
+}
 
 function marcarRecebido(idx) {
   const c = db.compras[idx];
