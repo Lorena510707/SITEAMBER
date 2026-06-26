@@ -97,9 +97,13 @@ input:focus,select:focus{border-color:var(--verde);box-shadow:0 0 0 3px rgba(29,
     <img src="https://lorena510707.github.io/SITEAMBER/logo.jpeg" alt="Amber Comércio" style="height:44px;width:auto;border-radius:8px;">
     <span style="font-size:12px;color:var(--text3)">Controle de Estoque</span>
   </div>
-  <div style="display:flex;align-items:center;gap:8px;">
+  <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
     <span id="last-save" style="font-size:11px;color:var(--text3)"></span>
-    <button class="btn btn-sm" onclick="exportCSV()">⬇ Exportar CSV</button>
+    <button class="btn btn-sm" onclick="exportCSV()" title="Exportar estoque em CSV">⬇ CSV</button>
+    <button class="btn btn-sm" style="background:#EAF3DE;color:#27500A;border-color:#C3E6B0" onclick="exportBackup()" title="Exportar backup completo">💾 Backup</button>
+    <label class="btn btn-sm" style="background:#E6F1FB;color:#0C447C;border-color:#C3D9F5;cursor:pointer" title="Importar backup">
+      📂 Restaurar<input type="file" accept=".json" onchange="importBackup(event)" style="display:none">
+    </label>
   </div>
 </header>
 <nav>
@@ -514,7 +518,7 @@ function fazerLogin(){
   load();renderAll();
 }
 
-const KEY='amber-v17';
+const KEY='amber-v18';
 let db={produtos:[],movs:[],boletos:[]};
 let editIdx=null;
 
@@ -1364,6 +1368,52 @@ function confirmarBoletoPago() {
   closeModalBoletoPago();
   renderBoletos();
   alert('✓ Boleto de ' + b.cli + ' marcado como pago via ' + pgto + '!');
+}
+
+
+function exportBackup() {
+  const data = {
+    version: 'amber-backup-v1',
+    date: new Date().toLocaleString('pt-BR'),
+    db: db
+  };
+  const json = JSON.stringify(data, null, 2);
+  const a = document.createElement('a');
+  a.href = 'data:application/json;charset=utf-8,' + encodeURIComponent(json);
+  const dateStr = new Date().toLocaleDateString('pt-BR').replace(/\//g,'-');
+  a.download = 'amber_backup_' + dateStr + '.json';
+  a.click();
+  alert('✓ Backup salvo! Guarde o arquivo em local seguro.');
+}
+
+function importBackup(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!data.db || !data.db.produtos) {
+        alert('Arquivo inválido! Selecione um backup gerado pelo sistema Amber.');
+        return;
+      }
+      if (!confirm('Restaurar backup de ' + (data.date||'data desconhecida') + '?\n\nATENÇÃO: os dados atuais serão substituídos pelos dados do backup.')) return;
+      db = data.db;
+      // Ensure all arrays exist
+      if (!db.compras) db.compras = [];
+      if (!db.boletos) db.boletos = [];
+      if (!db.movs) db.movs = [];
+      if (!db.produtos) db.produtos = [];
+      save();
+      renderAll();
+      alert('✓ Backup restaurado com sucesso!\n\nProdutos: ' + db.produtos.length + '\nMovimentações: ' + db.movs.length + '\nRecebimentos: ' + db.boletos.length);
+    } catch(err) {
+      alert('Erro ao ler o arquivo. Certifique-se que é um arquivo de backup válido.');
+    }
+  };
+  reader.readAsText(file);
+  // Reset input so same file can be selected again
+  event.target.value = '';
 }
 
 </script>
