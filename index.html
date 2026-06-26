@@ -267,6 +267,16 @@ input:focus,select:focus{border-color:var(--verde);box-shadow:0 0 0 3px rgba(29,
 
 <!-- COMPRAS -->
 <div id="tab-compras" class="section">
+  <div class="search-bar">
+    <input id="c-busca" placeholder="Buscar descrição, código..." oninput="renderCompras()">
+    <select id="c-filtro-status" onchange="renderCompras()">
+      <option value="">Todos os status</option>
+      <option value="Aguardando">Aguardando</option>
+      <option value="Recebido">Recebido</option>
+    </select>
+    <input id="c-filtro-data" type="month" onchange="renderCompras()" title="Filtrar por mês de recebimento" style="max-width:160px">
+    <button class="btn btn-sm" onclick="limparFiltrosCompras()">Limpar filtros</button>
+  </div>
   <div class="card">
     <div class="card-header">
       <span class="card-title">Controle de compras</span>
@@ -377,7 +387,7 @@ function fazerLogin(){
   load();renderAll();
 }
 
-const KEY='amber-v6';
+const KEY='amber-v7';
 let db={produtos:[],movs:[],boletos:[]};
 let editIdx=null;
 
@@ -824,11 +834,37 @@ function exportCSV(){
 
 load();renderAll();
 
+function limparFiltrosCompras(){
+  const b=document.getElementById('c-busca'); if(b)b.value='';
+  const s=document.getElementById('c-filtro-status'); if(s)s.value='';
+  const d=document.getElementById('c-filtro-data'); if(d)d.value='';
+  renderCompras();
+}
 function renderCompras(){
   const el=document.querySelector('#tbl-compras tbody');
   if(!el)return;
   if(!db.compras||!db.compras.length){el.innerHTML='<tr><td colspan="9" class="empty">Nenhuma compra registrada.</td></tr>';return;}
-  el.innerHTML=db.compras.map((c,i)=>{
+  const busca=(document.getElementById('c-busca')||{value:''}).value.toLowerCase();
+  const filtroStatus=(document.getElementById('c-filtro-status')||{value:''}).value;
+  const filtroMes=(document.getElementById('c-filtro-data')||{value:''}).value; // format YYYY-MM
+  const comprasFiltradas=db.compras.filter((c,i)=>{
+    if(busca&&!`${c.cod} ${c.desc}`.toLowerCase().includes(busca))return false;
+    const aguardando=c.data==='Aguardando'||!c.data;
+    if(filtroStatus==='Aguardando'&&!aguardando)return false;
+    if(filtroStatus==='Recebido'&&aguardando)return false;
+    if(filtroMes&&!aguardando){
+      // parse dd/mm/yyyy
+      const p=c.data.split('/');
+      if(p.length===3){
+        const mes=p[2]+'-'+(p[1].length===1?'0'+p[1]:p[1]);
+        if(mes!==filtroMes)return false;
+      }
+    }
+    return true;
+  });
+  if(!comprasFiltradas.length){el.innerHTML='<tr><td colspan="9" class="empty">Nenhuma compra encontrada.</td></tr>';return;}
+  el.innerHTML=comprasFiltradas.map((c,i)=>{
+    const realIdx=db.compras.indexOf(c);
     const aguardando=c.data==='Aguardando'||!c.data;
     const statusBadge=aguardando?'<span class="badge badge-warn">Aguardando</span>':'<span class="badge badge-ok">Recebido</span>';
     const totalCompra=(c.vcompra||0)*(c.qtd||0);
@@ -841,7 +877,7 @@ function renderCompras(){
       <td>${c.vvenda?fmt(c.vvenda):'—'}</td>
       <td style="color:var(--text3)">${c.data||'—'}</td>
       <td>${statusBadge}</td>
-      <td><button class="btn btn-danger btn-sm" onclick="removerCompra(${i})">✕</button></td>
+      <td><button class="btn btn-danger btn-sm" onclick="removerCompra(${realIdx})">✕</button></td>
     </tr>`;
   }).join('');
 }
