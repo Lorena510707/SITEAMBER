@@ -620,7 +620,7 @@ function renderEstoque(){
       <td class="col-gestor">${p.atacado?fmt(p.atacado):'—'}</td>
       <td>${p.preco?fmt(p.preco):'—'}</td>
       <td>${badgeStatus(p)}</td>
-      <td>${(!perfilAtual||perfilAtual.tipo==='gestor')?'<button class="btn btn-sm" onclick="openEdit('+idx+')">Editar</button>':''}</td>
+      <td style="white-space:nowrap">${(!perfilAtual||perfilAtual.tipo==='gestor')?'<button class="btn btn-sm" onclick="openEdit('+idx+')">Editar</button> <button class="btn btn-danger btn-sm" onclick="excluirProduto('+idx+')">✕</button>':''}</td>
     </tr>`;
   }).join('');
 }
