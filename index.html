@@ -221,15 +221,16 @@ input:focus,select:focus{border-color:var(--verde);box-shadow:0 0 0 3px rgba(29,
 <div id="tab-boletos" class="section">
   <!-- Filtros -->
   <div class="search-bar" style="margin-bottom:14px">
-    <select id="rec-mes" onchange="renderBoletos()" style="max-width:180px">
+    <input id="rec-busca" placeholder="Buscar cliente/empresa..." oninput="renderBoletos()" style="max-width:220px">
+    <select id="rec-mes" onchange="renderBoletos()" style="max-width:160px">
       <option value="">Todos os meses</option>
     </select>
-    <select id="rec-status" onchange="renderBoletos()" style="max-width:180px">
+    <select id="rec-status" onchange="renderBoletos()" style="max-width:160px">
       <option value="">A receber + Recebido</option>
       <option value="receber">Só a receber</option>
       <option value="recebido">Só recebido</option>
     </select>
-    <select id="rec-pgto" onchange="renderBoletos()" style="max-width:180px">
+    <select id="rec-pgto" onchange="renderBoletos()" style="max-width:160px">
       <option value="">Todas as formas</option>
       <option>Boleto</option><option>PIX</option><option>Dinheiro</option>
       <option>Cartão de crédito</option><option>Cartão de débito</option><option>Transferência</option>
@@ -382,6 +383,45 @@ input:focus,select:focus{border-color:var(--verde);box-shadow:0 0 0 3px rgba(29,
     </div>
   </div>
 </div>
+
+<!-- MODAL EDITAR BOLETO -->
+<div class="modal-overlay" id="modal-edit-boleto">
+  <div class="modal">
+    <div class="modal-title">Editar recebimento</div>
+    <div class="form-grid">
+      <div class="field"><label>Data / Vencimento</label><input id="eb-venc" type="date"></div>
+      <div class="field"><label>Cliente</label><input id="eb-cli" placeholder="Nome do cliente"></div>
+      <div class="field"><label>Valor (R$)</label><input id="eb-val" type="number" step="0.01"></div>
+      <div class="field"><label>Forma de pagamento</label>
+        <select id="eb-pgto">
+          <option value="Boleto">Boleto (a receber)</option>
+          <option value="PIX">PIX (recebido)</option>
+          <option value="Dinheiro">Dinheiro (recebido)</option>
+          <option value="Cartão de crédito">Cartão de crédito (recebido)</option>
+          <option value="Cartão de débito">Cartão de débito (recebido)</option>
+          <option value="Transferência">Transferência (recebido)</option>
+          <option value="À vista">À vista (recebido)</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-grid">
+      <div class="field"><label>Mês de referência</label>
+        <select id="eb-mes">
+          <option>Maio/2026</option><option>Junho/2026</option><option>Julho/2026</option>
+          <option>Agosto/2026</option><option>Setembro/2026</option><option>Outubro/2026</option>
+          <option>Novembro/2026</option><option>Dezembro/2026</option>
+        </select>
+      </div>
+      <div class="field" style="grid-column:1/-1"><label>Observação</label>
+        <input id="eb-obs" placeholder="NF, referência...">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModalEditBoleto()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarEditBoleto()">Salvar</button>
+    </div>
+  </div>
+</div>
 </main>
 
 <!-- MODAL EDITAR -->
@@ -447,7 +487,7 @@ function fazerLogin(){
   load();renderAll();
 }
 
-const KEY='amber-v15';
+const KEY='amber-v16';
 let db={produtos:[],movs:[],boletos:[]};
 let editIdx=null;
 
@@ -538,39 +578,43 @@ const MOVS_INIT=[
 ];
 
 const BOLETOS_INIT=[
-  // Maio 2026 - recebidos
-  {mes:'Maio/2026',venc:'19/05/2026',cli:'MGTEC',val:8248,pgto:'PIX',obs:'Bella Ducha 127V x150 — Retirada Ok'},
-  {mes:'Maio/2026',venc:'26/05/2026',cli:'Elétrica Shopp',val:5499,pgto:'PIX',obs:'Bella Ducha 220V x100 — PIX Conta Josi'},
-  {mes:'Maio/2026',venc:'26/05/2026',cli:'Elétrica Shopp',val:5299,pgto:'PIX',obs:'Max Ducha 220V x100 — PIX Conta Josi'},
-  {mes:'Maio/2026',venc:'27/05/2026',cli:'MGTEC',val:5299,pgto:'PIX',obs:'Max Ducha 127V x100 — PIX 6.934,67 Josiane'},
-  {mes:'Maio/2026',venc:'27/05/2026',cli:'MGTEC',val:5103,pgto:'PIX',obs:'Top Jet 220V x50 — PIX 3.467,33 Amber'},
-  // Junho 2026 - recebidos
-  {mes:'Junho/2026',venc:'03/06/2026',cli:'MGTEC',val:2649.5,pgto:'Cartão de crédito',obs:'Bella Ducha 127V x150 — Pago em loja'},
-  {mes:'Junho/2026',venc:'03/06/2026',cli:'MGTEC',val:8248.5,pgto:'Cartão de crédito',obs:'Max Ducha 127V x50 — Pago em loja'},
-  {mes:'Junho/2026',venc:'10/06/2026',cli:'Eletrowal LTDA',val:264.95,pgto:'PIX',obs:'Max Ducha 127V x5'},
-  {mes:'Junho/2026',venc:'10/06/2026',cli:'Eletrowal LTDA',val:274.95,pgto:'PIX',obs:'Bella Ducha 127V x5'},
-  {mes:'Junho/2026',venc:'10/06/2026',cli:'Eletrowal LTDA',val:154.34,pgto:'PIX',obs:'Ducha Advanced 220V x1'},
-  {mes:'Junho/2026',venc:'11/06/2026',cli:'Átila',val:264.95,pgto:'Dinheiro',obs:'Max Ducha 127V x5 — Aguardando depósito'},
-  {mes:'Junho/2026',venc:'11/06/2026',cli:'Átila',val:274.95,pgto:'Dinheiro',obs:'Bella Ducha 127V x5 — Aguardando depósito'},
-  {mes:'Junho/2026',venc:'12/06/2026',cli:'Eletrocarneiro',val:158.97,pgto:'PIX',obs:'Max Ducha 127V x3'},
-  {mes:'Junho/2026',venc:'12/06/2026',cli:'Eletrocarneiro',val:52.99,pgto:'PIX',obs:'Max Ducha 220V x1'},
-  {mes:'Junho/2026',venc:'23/06/2026',cli:'Charles Santana de Lima',val:794.85,pgto:'Dinheiro',obs:'Max Ducha 127V x15 — com Lorena para depósito'},
-  {mes:'Junho/2026',venc:'23/06/2026',cli:'Charles Santana de Lima',val:264.95,pgto:'Dinheiro',obs:'Max Ducha 220V x5 — com Lorena para depósito'},
-  {mes:'Junho/2026',venc:'23/06/2026',cli:'Charles Santana de Lima',val:274.95,pgto:'Dinheiro',obs:'Bella Ducha 127V x5 — com Lorena para depósito'},
-  {mes:'Junho/2026',venc:'23/06/2026',cli:'Charles Santana de Lima',val:164.97,pgto:'Dinheiro',obs:'Bella Ducha 220V x3 — com Lorena para depósito'},
-  {mes:'Junho/2026',venc:'23/06/2026',cli:'RP Material de Construção',val:635.88,pgto:'À vista',obs:'Max Ducha 127V x12'},
-  {mes:'Junho/2026',venc:'23/06/2026',cli:'RP Material de Construção',val:329.94,pgto:'À vista',obs:'Bella Ducha 127V x6'},
-  // Julho 2026 - boletos a receber
-  {mes:'Julho/2026',venc:'16/07/2026',cli:'Heletropaulo',val:3545.34,pgto:'Boleto',obs:''},
-  {mes:'Julho/2026',venc:'22/07/2026',cli:'Comercial Mahuacu Ltda',val:1822.08,pgto:'Boleto',obs:'Venc. 22/07'},
-  {mes:'Julho/2026',venc:'24/07/2026',cli:'Agência 2 Irmãos',val:10658.90,pgto:'Boleto',obs:'Central Buritis'},
-  {mes:'Julho/2026',venc:'10/07/2026',cli:'Eletroferragens França',val:1420.16,pgto:'Boleto',obs:''},
-  {mes:'Julho/2026',venc:'25/07/2026',cli:'Eletroferragens França',val:1261.19,pgto:'Boleto',obs:''},
-  {mes:'Julho/2026',venc:'23/07/2026',cli:'Colégio Santa Maria Minas',val:8800.00,pgto:'Boleto',obs:'Chamex 400 resmas'},
-  // Agosto 2026 - boletos a receber
-  {mes:'Agosto/2026',venc:'06/08/2026',cli:'Comercial Mahuacu Ltda',val:1822.08,pgto:'Boleto',obs:''},
-  {mes:'Agosto/2026',venc:'21/08/2026',cli:'Comercial Mahuacu Ltda',val:1822.08,pgto:'Boleto',obs:''},
-  {mes:'Agosto/2026',venc:'08/08/2026',cli:'Agência 2 Irmãos',val:10658.90,pgto:'Boleto',obs:'Central Buritis'},
+  // ── MAIO 2026 — PAGO ──
+  {mes:'Maio/2026',venc:'19/05/2026',cli:'MGTEC',val:8248,pgto:'PIX',obs:'Bella Ducha 127V x150 — PAGO'},
+  {mes:'Maio/2026',venc:'26/05/2026',cli:'Elétrica Shopp',val:5499,pgto:'PIX',obs:'Bella Ducha 220V x100 — PIX Conta Josi — PAGO'},
+  {mes:'Maio/2026',venc:'26/05/2026',cli:'Elétrica Shopp',val:5299,pgto:'PIX',obs:'Max Ducha 220V x100 — PIX Conta Josi — PAGO'},
+  {mes:'Maio/2026',venc:'27/05/2026',cli:'MGTEC',val:5299,pgto:'PIX',obs:'Max Ducha 127V x100 — PIX 6.934,67 Josiane — PAGO'},
+  {mes:'Maio/2026',venc:'27/05/2026',cli:'MGTEC',val:5103,pgto:'PIX',obs:'Top Jet 220V x50 — PIX 3.467,33 Amber — PAGO'},
+  // ── JUNHO 2026 — PAGO ──
+  {mes:'Junho/2026',venc:'03/06/2026',cli:'MGTEC',val:2649.5,pgto:'Cartão de crédito',obs:'Bella Ducha 127V x150 — Pago em loja — PAGO'},
+  {mes:'Junho/2026',venc:'03/06/2026',cli:'MGTEC',val:8248.5,pgto:'Cartão de crédito',obs:'Max Ducha 127V x50 — Pago em loja — PAGO'},
+  {mes:'Junho/2026',venc:'10/06/2026',cli:'Eletrowal LTDA',val:264.95,pgto:'PIX',obs:'Max Ducha 127V x5 — PAGO'},
+  {mes:'Junho/2026',venc:'10/06/2026',cli:'Eletrowal LTDA',val:274.95,pgto:'PIX',obs:'Bella Ducha 127V x5 — PAGO'},
+  {mes:'Junho/2026',venc:'10/06/2026',cli:'Eletrowal LTDA',val:154.34,pgto:'PIX',obs:'Ducha Advanced 220V x1 — PAGO'},
+  {mes:'Junho/2026',venc:'11/06/2026',cli:'Átila',val:264.95,pgto:'Dinheiro',obs:'Max Ducha 127V x5 — PAGO'},
+  {mes:'Junho/2026',venc:'11/06/2026',cli:'Átila',val:274.95,pgto:'Dinheiro',obs:'Bella Ducha 127V x5 — PAGO'},
+  {mes:'Junho/2026',venc:'12/06/2026',cli:'Eletrocarneiro',val:158.97,pgto:'PIX',obs:'Max Ducha 127V x3 — PAGO'},
+  {mes:'Junho/2026',venc:'12/06/2026',cli:'Eletrocarneiro',val:52.99,pgto:'PIX',obs:'Max Ducha 220V x1 — PAGO'},
+  {mes:'Junho/2026',venc:'18/06/2026',cli:'MGTEC',val:4124.25,pgto:'PIX',obs:'Bella Ducha 127V x150 — Boleto venc. 18/06 — LIQUIDADO'},
+  {mes:'Junho/2026',venc:'22/06/2026',cli:'MGTEC',val:4124.25,pgto:'PIX',obs:'Bella Ducha 127V x150 — Boleto venc. 22/06 — LIQUIDADO'},
+  {mes:'Junho/2026',venc:'23/06/2026',cli:'Charles Santana de Lima',val:794.85,pgto:'Dinheiro',obs:'Max Ducha 127V x15 — depositado em conta — PAGO'},
+  {mes:'Junho/2026',venc:'23/06/2026',cli:'Charles Santana de Lima',val:264.95,pgto:'Dinheiro',obs:'Max Ducha 220V x5 — PAGO'},
+  {mes:'Junho/2026',venc:'23/06/2026',cli:'Charles Santana de Lima',val:274.95,pgto:'Dinheiro',obs:'Bella Ducha 127V x5 — PAGO'},
+  {mes:'Junho/2026',venc:'23/06/2026',cli:'Charles Santana de Lima',val:164.97,pgto:'Dinheiro',obs:'Bella Ducha 220V x3 — PAGO'},
+  {mes:'Junho/2026',venc:'23/06/2026',cli:'RP Material de Construção LTDA',val:635.88,pgto:'PIX',obs:'Max Ducha 127V x12 — pago PIX — PAGO'},
+  {mes:'Junho/2026',venc:'23/06/2026',cli:'RP Material de Construção LTDA',val:329.94,pgto:'PIX',obs:'Bella Ducha 127V x6 — PAGO'},
+  // ── JUNHO 2026 — A RECEBER ──
+  {mes:'Junho/2026',venc:'26/06/2026',cli:'Colégio Santa Maria Minas',val:8800,pgto:'Boleto',obs:'Chamex 400 resmas — venc. 26/06 — A RECEBER'},
+  // ── JULHO 2026 — A RECEBER ──
+  {mes:'Julho/2026',venc:'01/07/2026',cli:'Arte Page',val:2390,pgto:'Boleto',obs:'Chamex 100 resmas — venc. 01/07 — A RECEBER'},
+  {mes:'Julho/2026',venc:'10/07/2026',cli:'Eletroferragens França',val:1420.16,pgto:'Boleto',obs:'Max Ducha 127V x21 + Loren Shower x4 + Top Jet x4 — venc. 10/07'},
+  {mes:'Julho/2026',venc:'22/07/2026',cli:'Heletropaulo',val:3545.34,pgto:'Boleto',obs:'Max Ducha 127V x21, 220V x21, Bella Ducha 127V x12, 220V x12 — venc. 22/07'},
+  {mes:'Julho/2026',venc:'22/07/2026',cli:'Comercial Mahuacu Ltda',val:1822.08,pgto:'Boleto',obs:'Venc. 22/07 — 1ª parcela'},
+  {mes:'Julho/2026',venc:'24/07/2026',cli:'Agência 2 Irmãos',val:10658.90,pgto:'Boleto',obs:'Central Buritis — venc. 24/07 — 1ª parcela'},
+  {mes:'Julho/2026',venc:'25/07/2026',cli:'Eletroferragens França',val:1261.19,pgto:'Boleto',obs:'Max Ducha 220V x12 — venc. 25/07'},
+  // ── AGOSTO 2026 — A RECEBER ──
+  {mes:'Agosto/2026',venc:'06/08/2026',cli:'Comercial Mahuacu Ltda',val:1822.08,pgto:'Boleto',obs:'Venc. 06/08 — 2ª parcela'},
+  {mes:'Agosto/2026',venc:'08/08/2026',cli:'Agência 2 Irmãos',val:10658.90,pgto:'Boleto',obs:'Central Buritis — venc. 08/08 — 2ª parcela'},
+  {mes:'Agosto/2026',venc:'21/08/2026',cli:'Comercial Mahuacu Ltda',val:1822.08,pgto:'Boleto',obs:'Venc. 21/08 — 3ª parcela'},
 ];
 
 function parseDateBR(s){if(!s||s==='—')return new Date(0);const p=s.split('/');if(p.length===3)return new Date(+p[2],+p[1]-1,+p[0]);return new Date(0);}
@@ -915,7 +959,9 @@ function renderBoletos(){
   const filtroStatus=document.getElementById('rec-status')?.value||'';
   const filtroPgto=document.getElementById('rec-pgto')?.value||'';
 
+  const busca=(document.getElementById('rec-busca')||{value:''}).value.toLowerCase();
   let boletos=db.boletos.filter(b=>{
+    if(busca&&!`${b.cli} ${b.obs}`.toLowerCase().includes(busca))return false;
     if(filtroMes&&b.mes!==filtroMes)return false;
     if(filtroStatus==='receber'&&isRecebido(b.pgto))return false;
     if(filtroStatus==='recebido'&&!isRecebido(b.pgto))return false;
@@ -982,7 +1028,10 @@ function renderBoletos(){
             <td><span class="badge" style="background:${c.bg};color:${c.color}">${b.pgto||'Boleto'}</span></td>
             <td><strong>${fmt(b.val)}</strong></td>
             <td style="color:var(--text3)">${b.obs||'—'}</td>
-            <td><button class="btn btn-danger btn-sm" onclick="removerBoleto(${idx})">✕</button></td>
+            <td style="white-space:nowrap;display:flex;gap:4px">
+              <button class="btn btn-sm" style="font-size:11px" onclick="editarBoleto(${idx})">✎</button>
+              <button class="btn btn-danger btn-sm" onclick="removerBoleto(${idx})">✕</button>
+            </td>
           </tr>`;
         }).join('')}</tbody>
       </table></div>
@@ -1211,6 +1260,44 @@ function excluirProduto(idx) {
   if (!confirm('Excluir "' + p.nome + ' ' + p.espec + '" do estoque?\nEsta ação não pode ser desfeita.')) return;
   db.produtos.splice(idx, 1);
   save(); renderAll();
+}
+
+
+let _editBoletoIdx = null;
+
+function editarBoleto(idx) {
+  _editBoletoIdx = idx;
+  const b = db.boletos[idx];
+  // Convert dd/mm/yyyy to yyyy-mm-dd for date input
+  const p = (b.venc||'').split('/');
+  const dateVal = p.length===3 ? `${p[2]}-${p[1]}-${p[0]}` : '';
+  document.getElementById('eb-venc').value = dateVal;
+  document.getElementById('eb-cli').value = b.cli||'';
+  document.getElementById('eb-val').value = b.val||'';
+  document.getElementById('eb-pgto').value = b.pgto||'Boleto';
+  document.getElementById('eb-mes').value = b.mes||'Julho/2026';
+  document.getElementById('eb-obs').value = b.obs||'';
+  document.getElementById('modal-edit-boleto').classList.add('open');
+}
+
+function closeModalEditBoleto() {
+  document.getElementById('modal-edit-boleto').classList.remove('open');
+  _editBoletoIdx = null;
+}
+
+function salvarEditBoleto() {
+  if(_editBoletoIdx === null) return;
+  const b = db.boletos[_editBoletoIdx];
+  const vencRaw = document.getElementById('eb-venc').value;
+  b.venc = vencRaw ? new Date(vencRaw+'T12:00:00').toLocaleDateString('pt-BR') : b.venc;
+  b.cli = document.getElementById('eb-cli').value.trim();
+  b.val = parseFloat(document.getElementById('eb-val').value)||0;
+  b.pgto = document.getElementById('eb-pgto').value;
+  b.mes = document.getElementById('eb-mes').value;
+  b.obs = document.getElementById('eb-obs').value.trim();
+  save();
+  closeModalEditBoleto();
+  renderBoletos();
 }
 
 </script>
