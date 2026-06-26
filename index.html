@@ -204,6 +204,10 @@ input:focus,select:focus{border-color:var(--verde);box-shadow:0 0 0 3px rgba(29,
       <option value="Entrada">Só entradas</option><option value="Saída">Só saídas</option>
     </select>
     <select id="h-resp" onchange="renderHistorico()"><option value="">Todos os responsáveis</option></select>
+    <div style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--text3)">
+      <span>De</span><input id="h-data-ini" type="date" style="max-width:140px" onchange="renderHistorico()">
+      <span>até</span><input id="h-data-fim" type="date" style="max-width:140px" onchange="renderHistorico()">
+    </div>
   </div>
   <div class="card">
     <div class="table-wrap"><table id="tbl-historico">
@@ -217,20 +221,33 @@ input:focus,select:focus{border-color:var(--verde);box-shadow:0 0 0 3px rgba(29,
 <div id="tab-boletos" class="section">
   <div class="boleto-grid" id="boleto-colunas"></div>
   <div class="card" style="margin-top:16px">
-    <div class="card-header"><span class="card-title">Adicionar boleto / recebível</span></div>
+    <div class="card-header"><span class="card-title">Registrar recebimento</span></div>
     <div class="card-body">
       <div class="form-grid">
-        <div class="field"><label>Vencimento</label><input id="b-venc" type="date"></div>
+        <div class="field"><label>Data</label><input id="b-venc" type="date"></div>
         <div class="field"><label>Cliente</label><input id="b-cli" placeholder="Nome do cliente"></div>
         <div class="field"><label>Valor (R$)</label><input id="b-val" type="number" step="0.01" placeholder="0,00"></div>
+        <div class="field"><label>Forma de pagamento</label>
+          <select id="b-pgto">
+            <option value="Boleto">Boleto</option>
+            <option value="PIX">PIX</option>
+            <option value="Dinheiro">Dinheiro</option>
+            <option value="Cartão de crédito">Cartão de crédito</option>
+            <option value="Cartão de débito">Cartão de débito</option>
+            <option value="Transferência">Transferência</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-grid">
         <div class="field"><label>Mês de referência</label>
           <select id="b-mes">
             <option>Julho/2026</option><option>Agosto/2026</option><option>Setembro/2026</option>
             <option>Outubro/2026</option><option>Novembro/2026</option><option>Dezembro/2026</option>
           </select>
         </div>
+        <div class="field" style="grid-column:1/-1"><label>Observação</label><input id="b-obs" placeholder="NF, referência, cliente..."></div>
       </div>
-      <button class="btn btn-primary" onclick="addBoleto()">+ Adicionar boleto</button>
+      <button class="btn btn-primary" onclick="addBoleto()">+ Registrar recebimento</button>
     </div>
   </div>
 </div>
@@ -404,7 +421,7 @@ function fazerLogin(){
   load();renderAll();
 }
 
-const KEY='amber-v12';
+const KEY='amber-v14';
 let db={produtos:[],movs:[],boletos:[]};
 let editIdx=null;
 
@@ -495,15 +512,15 @@ const MOVS_INIT=[
 ];
 
 const BOLETOS_INIT=[
-  {mes:'Julho/2026',venc:'16/07/2026',cli:'Heletropaulo',val:3545.34},
-  {mes:'Julho/2026',venc:'22/07/2026',cli:'Comercial Mahuacu Ltda',val:1822.08},
-  {mes:'Julho/2026',venc:'24/07/2026',cli:'Agência 2 Irmãos',val:10658.90},
-  {mes:'Julho/2026',venc:'10/07/2026',cli:'Eletroferragens França',val:1420.16},
-  {mes:'Julho/2026',venc:'25/07/2026',cli:'Eletroferragens França',val:1261.19},
-  {mes:'Julho/2026',venc:'23/07/2026',cli:'Colégio Santa Maria Minas',val:8800.00},
-  {mes:'Agosto/2026',venc:'06/08/2026',cli:'Comercial Mahuacu Ltda',val:1822.08},
-  {mes:'Agosto/2026',venc:'21/08/2026',cli:'Comercial Mahuacu Ltda',val:1822.08},
-  {mes:'Agosto/2026',venc:'08/08/2026',cli:'Agência 2 Irmãos',val:10658.90},
+  {mes:'Julho/2026',venc:'16/07/2026',cli:'Heletropaulo',val:3545.34,pgto:'Boleto',obs:''},
+  {mes:'Julho/2026',venc:'22/07/2026',cli:'Comercial Mahuacu Ltda',val:1822.08,pgto:'Boleto',obs:''},
+  {mes:'Julho/2026',venc:'24/07/2026',cli:'Agência 2 Irmãos',val:10658.90,pgto:'Boleto',obs:''},
+  {mes:'Julho/2026',venc:'10/07/2026',cli:'Eletroferragens França',val:1420.16,pgto:'Boleto',obs:''},
+  {mes:'Julho/2026',venc:'25/07/2026',cli:'Eletroferragens França',val:1261.19,pgto:'Boleto',obs:''},
+  {mes:'Julho/2026',venc:'23/07/2026',cli:'Colégio Santa Maria Minas',val:8800.00,pgto:'Boleto',obs:''},
+  {mes:'Agosto/2026',venc:'06/08/2026',cli:'Comercial Mahuacu Ltda',val:1822.08,pgto:'Boleto',obs:''},
+  {mes:'Agosto/2026',venc:'21/08/2026',cli:'Comercial Mahuacu Ltda',val:1822.08,pgto:'Boleto',obs:''},
+  {mes:'Agosto/2026',venc:'08/08/2026',cli:'Agência 2 Irmãos',val:10658.90,pgto:'Boleto',obs:''},
 ];
 
 function parseDateBR(s){if(!s||s==='—')return new Date(0);const p=s.split('/');if(p.length===3)return new Date(+p[2],+p[1]-1,+p[0]);return new Date(0);}
@@ -753,6 +770,8 @@ function renderHistorico(){
   const tipo=(document.getElementById('h-tipo')||{value:''}).value;
   const resp=(document.getElementById('h-resp')||{value:''}).value;
   const mes=(document.getElementById('h-mes')||{value:''}).value;
+  const dataIni=(document.getElementById('h-data-ini')||{value:''}).value;
+  const dataFim=(document.getElementById('h-data-fim')||{value:''}).value;
   const el=document.querySelector('#tbl-historico tbody');if(!el)return;
   let movs=[...db.movs]
     .sort((a,b)=>parseDateBR(a.data)-parseDateBR(b.data))
@@ -761,9 +780,16 @@ function renderHistorico(){
       if(tipo&&m.tipo!==tipo)return false;
       if(resp&&m.resp!==resp)return false;
       if(mes&&getMesAno(m.data)!==mes)return false;
+      if(dataIni){const d=parseDateBR(m.data);const ini=new Date(dataIni+'T00:00:00');if(d<ini)return false;}
+      if(dataFim){const d=parseDateBR(m.data);const fim=new Date(dataFim+'T23:59:59');if(d>fim)return false;}
       return true;
     });
   if(!movs.length){el.innerHTML='<tr><td colspan="11" class="empty">Nenhuma movimentação encontrada.</td></tr>';return;}
+  // Totals per month (saídas only)
+  const totaisMes={};
+  movs.filter(m=>m.tipo==='Saída'&&m.valor).forEach(m=>{
+    const k=getMesAno(m.data);totaisMes[k]=(totaisMes[k]||0)+(m.valor||0);
+  });
   let lastMes=null;
   const rows=movs.map(m=>{
     const realIdx=db.movs.indexOf(m);
@@ -771,7 +797,8 @@ function renderHistorico(){
     let header='';
     if(mesMov!==lastMes){
       lastMes=mesMov;
-      header=`<tr class="mes-header"><td colspan="11">${mesMov}</td></tr>`;
+      const totalMes=totaisMes[mesMov]?' — Total saídas: R$ '+totaisMes[mesMov].toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'';
+      header=`<tr class="mes-header"><td colspan="11">${mesMov}${totalMes}</td></tr>`;
     }
     return header+`<tr>
       <td style="color:var(--text3);white-space:nowrap">${m.data}</td>
@@ -784,15 +811,22 @@ function renderHistorico(){
       <td>${m.valor?fmt(m.valor):'—'}</td>
       <td style="color:var(--text3)">${m.pgto||'—'}</td>
       <td style="color:var(--text3)">${m.obs||'—'}</td>
-      <td>${(!perfilAtual||perfilAtual.tipo==='gestor')?'<button class="btn btn-danger btn-sm" onclick="removerMov('+realIdx+')">✕</button>':''}</td>
+      <td><button class="btn btn-danger btn-sm" onclick="removerMov(${realIdx})">✕</button></td>
     </tr>`;
   });
   el.innerHTML=rows.join('');
 }
-
 function removerMov(idx){
   if(!confirm('Excluir esta movimentação do histórico?'))return;
   db.movs.splice(idx,1);save();populateRespSelect();populateMesSelect();renderHistorico();renderMetrics();
+}
+
+function pgtoColor(pgto){
+  if(!pgto||pgto==='Boleto')return{bg:'#E6F1FB',color:'#0C447C'};
+  if(pgto==='PIX')return{bg:'#EAF3DE',color:'#27500A'};
+  if(pgto==='Dinheiro')return{bg:'#FEF9E7',color:'#7D6608'};
+  if(pgto.includes('Cartão'))return{bg:'#F5EEF8',color:'#6C3483'};
+  return{bg:'#F2F3F4',color:'#555'};
 }
 
 function renderBoletos(){
@@ -801,10 +835,32 @@ function renderBoletos(){
   el.innerHTML=meses.map(mes=>{
     const bs=db.boletos.filter(b=>b.mes===mes);
     const total=bs.reduce((s,b)=>s+(b.val||0),0);
+    // Totals per payment method
+    const porPgto={};
+    bs.forEach(b=>{const p=b.pgto||'Boleto';porPgto[p]=(porPgto[p]||0)+(b.val||0);});
+    const resumoPgto=Object.entries(porPgto).map(([p,v])=>{
+      const c=pgtoColor(p);
+      return`<span class="badge" style="background:${c.bg};color:${c.color};margin-right:4px">${p}: R$ ${v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}</span>`;
+    }).join('');
     return`<div class="card">
-      <div class="card-header"><span class="card-title">A receber — ${mes}</span><strong style="color:var(--verde)">R$ ${total.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}</strong></div>
-      <div class="table-wrap"><table><thead><tr><th>Vencimento</th><th>Cliente</th><th>Valor</th><th></th></tr></thead>
-      <tbody>${bs.map((b,i)=>{const idx=db.boletos.indexOf(b);return`<tr><td>${b.venc}</td><td>${b.cli}</td><td>${fmt(b.val)}</td><td><button class="btn btn-danger btn-sm" onclick="removerBoleto(${idx})">✕</button></td></tr>`;}).join('')}</tbody></table></div>
+      <div class="card-header">
+        <span class="card-title">A receber — ${mes}</span>
+        <strong style="color:var(--verde)">Total: R$ ${total.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}</strong>
+      </div>
+      <div style="padding:8px 16px;border-bottom:1px solid var(--border);display:flex;flex-wrap:wrap;gap:4px;font-size:12px">${resumoPgto}</div>
+      <div class="table-wrap"><table><thead><tr><th>Vencimento</th><th>Cliente</th><th>Pagamento</th><th>Valor</th><th>Obs.</th><th></th></tr></thead>
+      <tbody>${bs.map((b,i)=>{
+        const idx=db.boletos.indexOf(b);
+        const c=pgtoColor(b.pgto||'Boleto');
+        return`<tr>
+          <td>${b.venc}</td>
+          <td>${b.cli}</td>
+          <td><span class="badge" style="background:${c.bg};color:${c.color}">${b.pgto||'Boleto'}</span></td>
+          <td>${fmt(b.val)}</td>
+          <td style="color:var(--text3)">${b.obs||'—'}</td>
+          <td><button class="btn btn-danger btn-sm" onclick="removerBoleto(${idx})">✕</button></td>
+        </tr>`;
+      }).join('')}</tbody></table></div>
     </div>`;
   }).join('');
 }
@@ -814,10 +870,12 @@ function addBoleto(){
   const cli=document.getElementById('b-cli').value.trim();
   const val=parseFloat(document.getElementById('b-val').value)||0;
   const mes=document.getElementById('b-mes').value;
+  const pgto=document.getElementById('b-pgto').value||'Boleto';
+  const obs=document.getElementById('b-obs').value.trim();
   if(!cli||!val)return;
   const d=venc?new Date(venc+'T12:00:00').toLocaleDateString('pt-BR'):'—';
-  db.boletos.push({mes,venc:d,cli,val});save();
-  ['b-venc','b-cli','b-val'].forEach(id=>document.getElementById(id).value='');
+  db.boletos.push({mes,venc:d,cli,val,pgto,obs});save();
+  ['b-venc','b-cli','b-val','b-obs'].forEach(id=>document.getElementById(id).value='');
   renderBoletos();
 }
 
