@@ -76,809 +76,6 @@ input:focus,select:focus{border-color:var(--verde);box-shadow:0 0 0 3px rgba(29,
 .badge-gestor{background:#E6F1FB;color:#0C447C;}
 .badge-vendedor{background:#EAF3DE;color:#27500A;}
 </style>
-
-  <!-- Firebase SDK -->
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js">
-let orcItems = [];
-let orcProdSelecionado = null;
-
-function buscarProdOrc() {
-  const busca = document.getElementById('orc-busca-prod').value.toLowerCase();
-  const lista = document.getElementById('orc-lista-prod');
-  if (!busca) { lista.style.display='none'; return; }
-  const ps = db.produtos.filter(p => `${p.nome} ${p.espec} ${p.marca}`.toLowerCase().includes(busca));
-  if (!ps.length) { lista.innerHTML='<div class="empty" style="padding:10px">Nenhum produto encontrado</div>'; lista.style.display='block'; return; }
-  lista.style.display = 'block';
-  lista.innerHTML = ps.map((p,i) => {
-    const idx = db.produtos.indexOf(p);
-    return `<div onclick="selecionarProdOrc(${idx})" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border);display:flex;justify-content:space-between" onmouseover="this.style.background='#f5f5f3'" onmouseout="this.style.background=''">
-      <div><strong>${p.nome}</strong> <span style="color:var(--text3)">${p.espec}</span></div>
-      <div style="color:var(--verde);font-weight:600">${p.preco ? 'R$ ' + p.preco.toFixed(2).replace('.',',') : '—'}</div>
-    </div>`;
-  }).join('');
-}
-
-function selecionarProdOrc(idx) {
-  const p = db.produtos[idx];
-  orcProdSelecionado = p;
-  document.getElementById('orc-prod-nome').value = p.nome + ' ' + p.espec;
-  document.getElementById('orc-prod-preco').value = p.preco || '';
-  document.getElementById('orc-prod-qtd').value = 1;
-  document.getElementById('orc-add-fields').style.display = 'grid';
-  document.getElementById('orc-lista-prod').style.display = 'none';
-  document.getElementById('orc-busca-prod').value = '';
-}
-
-function addItemOrc() {
-  if (!orcProdSelecionado) return;
-  const qtd = parseInt(document.getElementById('orc-prod-qtd').value) || 1;
-  const preco = parseFloat(document.getElementById('orc-prod-preco').value) || 0;
-  // Check if already in list
-  const existing = orcItems.find(i => i.nome === orcProdSelecionado.nome && i.espec === orcProdSelecionado.espec);
-  if (existing) {
-    existing.qtd += qtd;
-    existing.preco = preco;
-  } else {
-    orcItems.push({ nome: orcProdSelecionado.nome, espec: orcProdSelecionado.espec, qtd, preco });
-  }
-  orcProdSelecionado = null;
-  document.getElementById('orc-add-fields').style.display = 'none';
-  document.getElementById('orc-prod-nome').value = '';
-  renderOrcPreview();
-}
-
-function removerItemOrc(i) {
-  orcItems.splice(i, 1);
-  renderOrcPreview();
-}
-
-function renderOrcPreview() {
-  const el = document.getElementById('orc-preview');
-  if (!orcItems.length) { el.innerHTML = '<div class="empty">Adicione produtos para montar o orçamento</div>'; return; }
-  const cli = document.getElementById('orc-cli').value || '—';
-  const total = orcItems.reduce((s, i) => s + i.qtd * i.preco, 0);
-  el.innerHTML = `
-    <div style="font-size:12px;color:var(--text3);margin-bottom:12px">
-      <strong style="color:var(--text)">${cli}</strong><br>
-      Data: ${new Date().toLocaleDateString('pt-BR')}
-    </div>
-    <table style="width:100%;font-size:13px;border-collapse:collapse">
-      <thead><tr style="background:var(--bg)">
-        <th style="padding:6px 8px;text-align:left;font-size:11px;color:var(--text3)">QTD</th>
-        <th style="padding:6px 8px;text-align:left;font-size:11px;color:var(--text3)">PRODUTO</th>
-        <th style="padding:6px 8px;text-align:right;font-size:11px;color:var(--text3)">UNIT.</th>
-        <th style="padding:6px 8px;text-align:right;font-size:11px;color:var(--text3)">TOTAL</th>
-        <th style="width:30px"></th>
-      </tr></thead>
-      <tbody>
-        ${orcItems.map((item,i) => `<tr style="border-bottom:1px solid var(--border)">
-          <td style="padding:6px 8px">${item.qtd}</td>
-          <td style="padding:6px 8px"><strong>${item.nome}</strong> <span style="color:var(--text3)">${item.espec}</span></td>
-          <td style="padding:6px 8px;text-align:right">R$ ${item.preco.toFixed(2).replace('.',',')}</td>
-          <td style="padding:6px 8px;text-align:right;font-weight:600">R$ ${(item.qtd*item.preco).toFixed(2).replace('.',',')}</td>
-          <td style="padding:6px 8px"><button onclick="removerItemOrc(${i})" style="background:none;border:none;cursor:pointer;color:#A32D2D;font-size:14px">✕</button></td>
-        </tr>`).join('')}
-      </tbody>
-    </table>
-    <div style="text-align:right;padding:12px 8px;border-top:2px solid var(--border);margin-top:4px">
-      <span style="font-size:15px;font-weight:600;color:var(--verde)">Total: R$ ${total.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}</span>
-    </div>`;
-}
-
-function limparOrc() {
-  if (orcItems.length && !confirm('Limpar orçamento?')) return;
-  orcItems = [];
-  ['orc-cli','orc-cnpj','orc-wpp','orc-validade'].forEach(id => document.getElementById(id).value = '');
-  renderOrcPreview();
-}
-
-function enviarWhatsApp() {
-  if (!orcItems.length) { alert('Adicione pelo menos um produto ao orçamento.'); return; }
-  const cli = document.getElementById('orc-cli').value || 'Cliente';
-  const cnpj = document.getElementById('orc-cnpj').value;
-  const wpp = document.getElementById('orc-wpp').value.replace(/\D/g,'');
-  const validade = document.getElementById('orc-validade').value || '7 dias';
-  const data = new Date().toLocaleDateString('pt-BR');
-  const resp = perfilAtual ? perfilAtual.nome : 'Amber';
-  const total = orcItems.reduce((s,i) => s + i.qtd * i.preco, 0);
-
-  let msg = `🛒 *ORÇAMENTO AMBER COMÉRCIO*\n`;
-  msg += `📅 Data: ${data}\n`;
-  msg += `🏢 Cliente: ${cli}`;
-  if (cnpj) msg += ` | CNPJ: ${cnpj}`;
-  msg += `\n\n`;
-  msg += `*PRODUTOS:*\n`;
-  msg += `━━━━━━━━━━━━━━━━━━━\n`;
-  orcItems.forEach(item => {
-    msg += `▪ ${item.qtd}x ${item.nome} ${item.espec}\n`;
-    msg += `  Unit: R$ ${item.preco.toFixed(2).replace('.',',')} | Total: R$ ${(item.qtd*item.preco).toFixed(2).replace('.',',')}\n`;
-  });
-  msg += `━━━━━━━━━━━━━━━━━━━\n`;
-  msg += `💰 *TOTAL: R$ ${total.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}*\n\n`;
-  msg += `⏳ Validade: ${validade}\n`;
-  msg += `📍 Amber Comércio Ltda\n`;
-  msg += `Av. do Contorno, 1480 - Floresta, BH/MG\n`;
-  msg += `CNPJ: 61.224.719/0001-55\n\n`;
-  msg += `_Atendimento: ${resp}_`;
-
-  const encoded = encodeURIComponent(msg);
-  const url = wpp ? `https://wa.me/${wpp}?text=${encoded}` : `https://wa.me/?text=${encoded}`;
-  window.open(url, '_blank');
-}
-
-
-function gerarPDF() {
-  if (!orcItems.length) { alert('Adicione pelo menos um produto ao orçamento.'); return; }
-  const cli = document.getElementById('orc-cli').value || '—';
-  const cnpj = document.getElementById('orc-cnpj').value || '';
-  const validade = document.getElementById('orc-validade').value || '7 dias';
-  const data = new Date().toLocaleDateString('pt-BR');
-  const total = orcItems.reduce((s,i) => s + i.qtd * i.preco, 0);
-  const numOrc = 'ORC-' + new Date().getFullYear() + ('0'+(new Date().getMonth()+1)).slice(-2) + ('0'+new Date().getDate()).slice(-2) + '-' + Math.floor(Math.random()*1000).toString().padStart(3,'0');
-
-  const linhas = orcItems.map(item => `
-    <tr>
-      <td style="text-align:center;padding:8px;border:1px solid #ddd">${item.qtd}</td>
-      <td style="padding:8px;border:1px solid #ddd">${item.nome} ${item.espec}</td>
-      <td style="text-align:right;padding:8px;border:1px solid #ddd">R$ ${item.preco.toFixed(2).replace('.',',')}</td>
-      <td style="text-align:right;padding:8px;border:1px solid #ddd;font-weight:bold">R$ ${(item.qtd*item.preco).toFixed(2).replace('.',',')}</td>
-    </tr>`).join('');
-
-  const pdfHTML = `<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-<meta charset="UTF-8">
-<title>Orçamento ${numOrc} - ${cli}</title>
-<style>
-  * { margin:0; padding:0; box-sizing:border-box; }
-  body { font-family: Arial, sans-serif; font-size:13px; color:#1a1a18; padding:30px; }
-  .header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:24px; padding-bottom:16px; border-bottom:2px solid #1D9E75; }
-  .logo img { height:60px; }
-  .empresa { text-align:right; font-size:11px; color:#555; line-height:1.6; }
-  .empresa strong { font-size:13px; color:#1a1a18; }
-  h1 { font-size:16px; text-align:center; margin-bottom:20px; text-transform:uppercase; letter-spacing:1px; }
-  .info-box { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px; }
-  .info-section { background:#f8f8f6; border-radius:6px; padding:12px; }
-  .info-section label { font-size:10px; text-transform:uppercase; color:#888; letter-spacing:.5px; }
-  .info-section p { font-size:13px; font-weight:600; margin-top:2px; }
-  table { width:100%; border-collapse:collapse; margin-bottom:16px; }
-  th { background:#1D9E75; color:white; padding:10px 8px; text-align:left; font-size:12px; }
-  th:nth-child(1) { width:60px; text-align:center; }
-  th:nth-child(3), th:nth-child(4) { text-align:right; width:110px; }
-  tr:nth-child(even) td { background:#f8f8f6; }
-  .total-row { background:#1D9E75!important; }
-  .total-row td { color:white; font-weight:bold; font-size:14px; padding:10px 8px; border:none!important; }
-  .footer { margin-top:30px; border-top:1px solid #ddd; padding-top:16px; display:flex; justify-content:space-between; font-size:11px; color:#888; }
-  .assinatura { text-align:center; margin-top:40px; }
-  .assinatura .linha { border-top:1px solid #333; width:200px; margin:0 auto 4px; }
-  @media print { body { padding:15px; } button { display:none; } }
-</style>
-</head>
-<body>
-<div class="header">
-  <div class="logo"><img src="https://lorena510707.github.io/SITEAMBER/logo.jpeg" alt="Amber Comércio"></div>
-  <div class="empresa">
-    <strong>AMBER COMÉRCIO LTDA</strong><br>
-    CNPJ: 61.224.719/0001-55<br>
-    Av. do Contorno, 1480 - Floresta<br>
-    Belo Horizonte / MG<br>
-  </div>
-</div>
-
-<h1>Orçamento Comercial</h1>
-
-<div class="info-box">
-  <div class="info-section">
-    <label>Proponente</label>
-    <p>Amber Comércio Ltda</p>
-  </div>
-  <div class="info-section">
-    <label>Número do orçamento</label>
-    <p>${numOrc}</p>
-  </div>
-  <div class="info-section">
-    <label>Cliente</label>
-    <p>${cli}</p>
-    ${cnpj ? `<span style="font-size:11px;color:#666">CNPJ: ${cnpj}</span>` : ''}
-  </div>
-  <div class="info-section">
-    <label>Data / Validade</label>
-    <p>${data}</p>
-    <span style="font-size:11px;color:#666">Válido por: ${validade}</span>
-  </div>
-</div>
-
-<table>
-  <thead>
-    <tr>
-      <th>QTD</th>
-      <th>DESCRIÇÃO</th>
-      <th style="text-align:right">VALOR UNIT.</th>
-      <th style="text-align:right">VALOR TOTAL</th>
-    </tr>
-  </thead>
-  <tbody>
-    ${linhas}
-    <tr class="total-row">
-      <td colspan="3" style="text-align:right;padding:10px 8px">VALOR TOTAL</td>
-      <td style="text-align:right;padding:10px 8px">R$ ${total.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
-    </tr>
-  </tbody>
-</table>
-
-<div class="footer">
-  <div>Belo Horizonte/MG, ${data}</div>
-  <div>AMBER COMÉRCIO LTDA | CNPJ: 61.224.719/0001-55</div>
-</div>
-
-<div class="assinatura">
-  <div class="linha"></div>
-  <div style="font-size:12px">AMBER COMÉRCIO LTDA</div>
-  <div style="font-size:11px;color:#888">Nome Fantasia: POCO MIX</div>
-</div>
-
-<br><br>
-<div style="text-align:center;display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
-  <button onclick="window.print()" style="background:#1D9E75;color:white;border:none;padding:10px 24px;border-radius:6px;font-size:14px;cursor:pointer;display:inline-flex;align-items:center;gap:8px">
-    🖨 Imprimir / Salvar PDF
-  </button>
-</div>
-<p style="text-align:center;font-size:11px;color:#aaa;margin-top:12px">
-  Salve como PDF → abra no celular → compartilhe pelo WhatsApp
-</p>
-</body>
-</html>`;
-
-  const win = window.open('', '_blank');
-  win.document.write(pdfHTML);
-  win.document.close();
-  // Auto open print on mobile after load
-  win.onload = function() {
-    setTimeout(function() {
-      // Don't auto-print on desktop, only show the button
-    }, 500);
-  };
-}
-
-</script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js">
-let orcItems = [];
-let orcProdSelecionado = null;
-
-function buscarProdOrc() {
-  const busca = document.getElementById('orc-busca-prod').value.toLowerCase();
-  const lista = document.getElementById('orc-lista-prod');
-  if (!busca) { lista.style.display='none'; return; }
-  const ps = db.produtos.filter(p => `${p.nome} ${p.espec} ${p.marca}`.toLowerCase().includes(busca));
-  if (!ps.length) { lista.innerHTML='<div class="empty" style="padding:10px">Nenhum produto encontrado</div>'; lista.style.display='block'; return; }
-  lista.style.display = 'block';
-  lista.innerHTML = ps.map((p,i) => {
-    const idx = db.produtos.indexOf(p);
-    return `<div onclick="selecionarProdOrc(${idx})" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border);display:flex;justify-content:space-between" onmouseover="this.style.background='#f5f5f3'" onmouseout="this.style.background=''">
-      <div><strong>${p.nome}</strong> <span style="color:var(--text3)">${p.espec}</span></div>
-      <div style="color:var(--verde);font-weight:600">${p.preco ? 'R$ ' + p.preco.toFixed(2).replace('.',',') : '—'}</div>
-    </div>`;
-  }).join('');
-}
-
-function selecionarProdOrc(idx) {
-  const p = db.produtos[idx];
-  orcProdSelecionado = p;
-  document.getElementById('orc-prod-nome').value = p.nome + ' ' + p.espec;
-  document.getElementById('orc-prod-preco').value = p.preco || '';
-  document.getElementById('orc-prod-qtd').value = 1;
-  document.getElementById('orc-add-fields').style.display = 'grid';
-  document.getElementById('orc-lista-prod').style.display = 'none';
-  document.getElementById('orc-busca-prod').value = '';
-}
-
-function addItemOrc() {
-  if (!orcProdSelecionado) return;
-  const qtd = parseInt(document.getElementById('orc-prod-qtd').value) || 1;
-  const preco = parseFloat(document.getElementById('orc-prod-preco').value) || 0;
-  // Check if already in list
-  const existing = orcItems.find(i => i.nome === orcProdSelecionado.nome && i.espec === orcProdSelecionado.espec);
-  if (existing) {
-    existing.qtd += qtd;
-    existing.preco = preco;
-  } else {
-    orcItems.push({ nome: orcProdSelecionado.nome, espec: orcProdSelecionado.espec, qtd, preco });
-  }
-  orcProdSelecionado = null;
-  document.getElementById('orc-add-fields').style.display = 'none';
-  document.getElementById('orc-prod-nome').value = '';
-  renderOrcPreview();
-}
-
-function removerItemOrc(i) {
-  orcItems.splice(i, 1);
-  renderOrcPreview();
-}
-
-function renderOrcPreview() {
-  const el = document.getElementById('orc-preview');
-  if (!orcItems.length) { el.innerHTML = '<div class="empty">Adicione produtos para montar o orçamento</div>'; return; }
-  const cli = document.getElementById('orc-cli').value || '—';
-  const total = orcItems.reduce((s, i) => s + i.qtd * i.preco, 0);
-  el.innerHTML = `
-    <div style="font-size:12px;color:var(--text3);margin-bottom:12px">
-      <strong style="color:var(--text)">${cli}</strong><br>
-      Data: ${new Date().toLocaleDateString('pt-BR')}
-    </div>
-    <table style="width:100%;font-size:13px;border-collapse:collapse">
-      <thead><tr style="background:var(--bg)">
-        <th style="padding:6px 8px;text-align:left;font-size:11px;color:var(--text3)">QTD</th>
-        <th style="padding:6px 8px;text-align:left;font-size:11px;color:var(--text3)">PRODUTO</th>
-        <th style="padding:6px 8px;text-align:right;font-size:11px;color:var(--text3)">UNIT.</th>
-        <th style="padding:6px 8px;text-align:right;font-size:11px;color:var(--text3)">TOTAL</th>
-        <th style="width:30px"></th>
-      </tr></thead>
-      <tbody>
-        ${orcItems.map((item,i) => `<tr style="border-bottom:1px solid var(--border)">
-          <td style="padding:6px 8px">${item.qtd}</td>
-          <td style="padding:6px 8px"><strong>${item.nome}</strong> <span style="color:var(--text3)">${item.espec}</span></td>
-          <td style="padding:6px 8px;text-align:right">R$ ${item.preco.toFixed(2).replace('.',',')}</td>
-          <td style="padding:6px 8px;text-align:right;font-weight:600">R$ ${(item.qtd*item.preco).toFixed(2).replace('.',',')}</td>
-          <td style="padding:6px 8px"><button onclick="removerItemOrc(${i})" style="background:none;border:none;cursor:pointer;color:#A32D2D;font-size:14px">✕</button></td>
-        </tr>`).join('')}
-      </tbody>
-    </table>
-    <div style="text-align:right;padding:12px 8px;border-top:2px solid var(--border);margin-top:4px">
-      <span style="font-size:15px;font-weight:600;color:var(--verde)">Total: R$ ${total.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}</span>
-    </div>`;
-}
-
-function limparOrc() {
-  if (orcItems.length && !confirm('Limpar orçamento?')) return;
-  orcItems = [];
-  ['orc-cli','orc-cnpj','orc-wpp','orc-validade'].forEach(id => document.getElementById(id).value = '');
-  renderOrcPreview();
-}
-
-function enviarWhatsApp() {
-  if (!orcItems.length) { alert('Adicione pelo menos um produto ao orçamento.'); return; }
-  const cli = document.getElementById('orc-cli').value || 'Cliente';
-  const cnpj = document.getElementById('orc-cnpj').value;
-  const wpp = document.getElementById('orc-wpp').value.replace(/\D/g,'');
-  const validade = document.getElementById('orc-validade').value || '7 dias';
-  const data = new Date().toLocaleDateString('pt-BR');
-  const resp = perfilAtual ? perfilAtual.nome : 'Amber';
-  const total = orcItems.reduce((s,i) => s + i.qtd * i.preco, 0);
-
-  let msg = `🛒 *ORÇAMENTO AMBER COMÉRCIO*\n`;
-  msg += `📅 Data: ${data}\n`;
-  msg += `🏢 Cliente: ${cli}`;
-  if (cnpj) msg += ` | CNPJ: ${cnpj}`;
-  msg += `\n\n`;
-  msg += `*PRODUTOS:*\n`;
-  msg += `━━━━━━━━━━━━━━━━━━━\n`;
-  orcItems.forEach(item => {
-    msg += `▪ ${item.qtd}x ${item.nome} ${item.espec}\n`;
-    msg += `  Unit: R$ ${item.preco.toFixed(2).replace('.',',')} | Total: R$ ${(item.qtd*item.preco).toFixed(2).replace('.',',')}\n`;
-  });
-  msg += `━━━━━━━━━━━━━━━━━━━\n`;
-  msg += `💰 *TOTAL: R$ ${total.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}*\n\n`;
-  msg += `⏳ Validade: ${validade}\n`;
-  msg += `📍 Amber Comércio Ltda\n`;
-  msg += `Av. do Contorno, 1480 - Floresta, BH/MG\n`;
-  msg += `CNPJ: 61.224.719/0001-55\n\n`;
-  msg += `_Atendimento: ${resp}_`;
-
-  const encoded = encodeURIComponent(msg);
-  const url = wpp ? `https://wa.me/${wpp}?text=${encoded}` : `https://wa.me/?text=${encoded}`;
-  window.open(url, '_blank');
-}
-
-
-function gerarPDF() {
-  if (!orcItems.length) { alert('Adicione pelo menos um produto ao orçamento.'); return; }
-  const cli = document.getElementById('orc-cli').value || '—';
-  const cnpj = document.getElementById('orc-cnpj').value || '';
-  const validade = document.getElementById('orc-validade').value || '7 dias';
-  const data = new Date().toLocaleDateString('pt-BR');
-  const total = orcItems.reduce((s,i) => s + i.qtd * i.preco, 0);
-  const numOrc = 'ORC-' + new Date().getFullYear() + ('0'+(new Date().getMonth()+1)).slice(-2) + ('0'+new Date().getDate()).slice(-2) + '-' + Math.floor(Math.random()*1000).toString().padStart(3,'0');
-
-  const linhas = orcItems.map(item => `
-    <tr>
-      <td style="text-align:center;padding:8px;border:1px solid #ddd">${item.qtd}</td>
-      <td style="padding:8px;border:1px solid #ddd">${item.nome} ${item.espec}</td>
-      <td style="text-align:right;padding:8px;border:1px solid #ddd">R$ ${item.preco.toFixed(2).replace('.',',')}</td>
-      <td style="text-align:right;padding:8px;border:1px solid #ddd;font-weight:bold">R$ ${(item.qtd*item.preco).toFixed(2).replace('.',',')}</td>
-    </tr>`).join('');
-
-  const pdfHTML = `<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-<meta charset="UTF-8">
-<title>Orçamento ${numOrc} - ${cli}</title>
-<style>
-  * { margin:0; padding:0; box-sizing:border-box; }
-  body { font-family: Arial, sans-serif; font-size:13px; color:#1a1a18; padding:30px; }
-  .header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:24px; padding-bottom:16px; border-bottom:2px solid #1D9E75; }
-  .logo img { height:60px; }
-  .empresa { text-align:right; font-size:11px; color:#555; line-height:1.6; }
-  .empresa strong { font-size:13px; color:#1a1a18; }
-  h1 { font-size:16px; text-align:center; margin-bottom:20px; text-transform:uppercase; letter-spacing:1px; }
-  .info-box { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px; }
-  .info-section { background:#f8f8f6; border-radius:6px; padding:12px; }
-  .info-section label { font-size:10px; text-transform:uppercase; color:#888; letter-spacing:.5px; }
-  .info-section p { font-size:13px; font-weight:600; margin-top:2px; }
-  table { width:100%; border-collapse:collapse; margin-bottom:16px; }
-  th { background:#1D9E75; color:white; padding:10px 8px; text-align:left; font-size:12px; }
-  th:nth-child(1) { width:60px; text-align:center; }
-  th:nth-child(3), th:nth-child(4) { text-align:right; width:110px; }
-  tr:nth-child(even) td { background:#f8f8f6; }
-  .total-row { background:#1D9E75!important; }
-  .total-row td { color:white; font-weight:bold; font-size:14px; padding:10px 8px; border:none!important; }
-  .footer { margin-top:30px; border-top:1px solid #ddd; padding-top:16px; display:flex; justify-content:space-between; font-size:11px; color:#888; }
-  .assinatura { text-align:center; margin-top:40px; }
-  .assinatura .linha { border-top:1px solid #333; width:200px; margin:0 auto 4px; }
-  @media print { body { padding:15px; } button { display:none; } }
-</style>
-</head>
-<body>
-<div class="header">
-  <div class="logo"><img src="https://lorena510707.github.io/SITEAMBER/logo.jpeg" alt="Amber Comércio"></div>
-  <div class="empresa">
-    <strong>AMBER COMÉRCIO LTDA</strong><br>
-    CNPJ: 61.224.719/0001-55<br>
-    Av. do Contorno, 1480 - Floresta<br>
-    Belo Horizonte / MG<br>
-  </div>
-</div>
-
-<h1>Orçamento Comercial</h1>
-
-<div class="info-box">
-  <div class="info-section">
-    <label>Proponente</label>
-    <p>Amber Comércio Ltda</p>
-  </div>
-  <div class="info-section">
-    <label>Número do orçamento</label>
-    <p>${numOrc}</p>
-  </div>
-  <div class="info-section">
-    <label>Cliente</label>
-    <p>${cli}</p>
-    ${cnpj ? `<span style="font-size:11px;color:#666">CNPJ: ${cnpj}</span>` : ''}
-  </div>
-  <div class="info-section">
-    <label>Data / Validade</label>
-    <p>${data}</p>
-    <span style="font-size:11px;color:#666">Válido por: ${validade}</span>
-  </div>
-</div>
-
-<table>
-  <thead>
-    <tr>
-      <th>QTD</th>
-      <th>DESCRIÇÃO</th>
-      <th style="text-align:right">VALOR UNIT.</th>
-      <th style="text-align:right">VALOR TOTAL</th>
-    </tr>
-  </thead>
-  <tbody>
-    ${linhas}
-    <tr class="total-row">
-      <td colspan="3" style="text-align:right;padding:10px 8px">VALOR TOTAL</td>
-      <td style="text-align:right;padding:10px 8px">R$ ${total.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
-    </tr>
-  </tbody>
-</table>
-
-<div class="footer">
-  <div>Belo Horizonte/MG, ${data}</div>
-  <div>AMBER COMÉRCIO LTDA | CNPJ: 61.224.719/0001-55</div>
-</div>
-
-<div class="assinatura">
-  <div class="linha"></div>
-  <div style="font-size:12px">AMBER COMÉRCIO LTDA</div>
-  <div style="font-size:11px;color:#888">Nome Fantasia: POCO MIX</div>
-</div>
-
-<br><br>
-<div style="text-align:center;display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
-  <button onclick="window.print()" style="background:#1D9E75;color:white;border:none;padding:10px 24px;border-radius:6px;font-size:14px;cursor:pointer;display:inline-flex;align-items:center;gap:8px">
-    🖨 Imprimir / Salvar PDF
-  </button>
-</div>
-<p style="text-align:center;font-size:11px;color:#aaa;margin-top:12px">
-  Salve como PDF → abra no celular → compartilhe pelo WhatsApp
-</p>
-</body>
-</html>`;
-
-  const win = window.open('', '_blank');
-  win.document.write(pdfHTML);
-  win.document.close();
-  // Auto open print on mobile after load
-  win.onload = function() {
-    setTimeout(function() {
-      // Don't auto-print on desktop, only show the button
-    }, 500);
-  };
-}
-
-</script>
-  <script>
-    const firebaseConfig = {
-      apiKey: "AIzaSyB6zTKLYrmb4AsCQwOKvLdGSWOVNFUqoDU",
-      authDomain: "ambercomercio.firebaseapp.com",
-      databaseURL: "https://ambercomercio-default-rtdb.firebaseio.com",
-      projectId: "ambercomercio",
-      storageBucket: "ambercomercio.firebasestorage.app",
-      messagingSenderId: "749296990361",
-      appId: "1:749296990361:web:339845e499c8455e3aa008"
-    };
-    firebase.initializeApp(firebaseConfig);
-    const firebaseDB = firebase.database();
-  
-let orcItems = [];
-let orcProdSelecionado = null;
-
-function buscarProdOrc() {
-  const busca = document.getElementById('orc-busca-prod').value.toLowerCase();
-  const lista = document.getElementById('orc-lista-prod');
-  if (!busca) { lista.style.display='none'; return; }
-  const ps = db.produtos.filter(p => `${p.nome} ${p.espec} ${p.marca}`.toLowerCase().includes(busca));
-  if (!ps.length) { lista.innerHTML='<div class="empty" style="padding:10px">Nenhum produto encontrado</div>'; lista.style.display='block'; return; }
-  lista.style.display = 'block';
-  lista.innerHTML = ps.map((p,i) => {
-    const idx = db.produtos.indexOf(p);
-    return `<div onclick="selecionarProdOrc(${idx})" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border);display:flex;justify-content:space-between" onmouseover="this.style.background='#f5f5f3'" onmouseout="this.style.background=''">
-      <div><strong>${p.nome}</strong> <span style="color:var(--text3)">${p.espec}</span></div>
-      <div style="color:var(--verde);font-weight:600">${p.preco ? 'R$ ' + p.preco.toFixed(2).replace('.',',') : '—'}</div>
-    </div>`;
-  }).join('');
-}
-
-function selecionarProdOrc(idx) {
-  const p = db.produtos[idx];
-  orcProdSelecionado = p;
-  document.getElementById('orc-prod-nome').value = p.nome + ' ' + p.espec;
-  document.getElementById('orc-prod-preco').value = p.preco || '';
-  document.getElementById('orc-prod-qtd').value = 1;
-  document.getElementById('orc-add-fields').style.display = 'grid';
-  document.getElementById('orc-lista-prod').style.display = 'none';
-  document.getElementById('orc-busca-prod').value = '';
-}
-
-function addItemOrc() {
-  if (!orcProdSelecionado) return;
-  const qtd = parseInt(document.getElementById('orc-prod-qtd').value) || 1;
-  const preco = parseFloat(document.getElementById('orc-prod-preco').value) || 0;
-  // Check if already in list
-  const existing = orcItems.find(i => i.nome === orcProdSelecionado.nome && i.espec === orcProdSelecionado.espec);
-  if (existing) {
-    existing.qtd += qtd;
-    existing.preco = preco;
-  } else {
-    orcItems.push({ nome: orcProdSelecionado.nome, espec: orcProdSelecionado.espec, qtd, preco });
-  }
-  orcProdSelecionado = null;
-  document.getElementById('orc-add-fields').style.display = 'none';
-  document.getElementById('orc-prod-nome').value = '';
-  renderOrcPreview();
-}
-
-function removerItemOrc(i) {
-  orcItems.splice(i, 1);
-  renderOrcPreview();
-}
-
-function renderOrcPreview() {
-  const el = document.getElementById('orc-preview');
-  if (!orcItems.length) { el.innerHTML = '<div class="empty">Adicione produtos para montar o orçamento</div>'; return; }
-  const cli = document.getElementById('orc-cli').value || '—';
-  const total = orcItems.reduce((s, i) => s + i.qtd * i.preco, 0);
-  el.innerHTML = `
-    <div style="font-size:12px;color:var(--text3);margin-bottom:12px">
-      <strong style="color:var(--text)">${cli}</strong><br>
-      Data: ${new Date().toLocaleDateString('pt-BR')}
-    </div>
-    <table style="width:100%;font-size:13px;border-collapse:collapse">
-      <thead><tr style="background:var(--bg)">
-        <th style="padding:6px 8px;text-align:left;font-size:11px;color:var(--text3)">QTD</th>
-        <th style="padding:6px 8px;text-align:left;font-size:11px;color:var(--text3)">PRODUTO</th>
-        <th style="padding:6px 8px;text-align:right;font-size:11px;color:var(--text3)">UNIT.</th>
-        <th style="padding:6px 8px;text-align:right;font-size:11px;color:var(--text3)">TOTAL</th>
-        <th style="width:30px"></th>
-      </tr></thead>
-      <tbody>
-        ${orcItems.map((item,i) => `<tr style="border-bottom:1px solid var(--border)">
-          <td style="padding:6px 8px">${item.qtd}</td>
-          <td style="padding:6px 8px"><strong>${item.nome}</strong> <span style="color:var(--text3)">${item.espec}</span></td>
-          <td style="padding:6px 8px;text-align:right">R$ ${item.preco.toFixed(2).replace('.',',')}</td>
-          <td style="padding:6px 8px;text-align:right;font-weight:600">R$ ${(item.qtd*item.preco).toFixed(2).replace('.',',')}</td>
-          <td style="padding:6px 8px"><button onclick="removerItemOrc(${i})" style="background:none;border:none;cursor:pointer;color:#A32D2D;font-size:14px">✕</button></td>
-        </tr>`).join('')}
-      </tbody>
-    </table>
-    <div style="text-align:right;padding:12px 8px;border-top:2px solid var(--border);margin-top:4px">
-      <span style="font-size:15px;font-weight:600;color:var(--verde)">Total: R$ ${total.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}</span>
-    </div>`;
-}
-
-function limparOrc() {
-  if (orcItems.length && !confirm('Limpar orçamento?')) return;
-  orcItems = [];
-  ['orc-cli','orc-cnpj','orc-wpp','orc-validade'].forEach(id => document.getElementById(id).value = '');
-  renderOrcPreview();
-}
-
-function enviarWhatsApp() {
-  if (!orcItems.length) { alert('Adicione pelo menos um produto ao orçamento.'); return; }
-  const cli = document.getElementById('orc-cli').value || 'Cliente';
-  const cnpj = document.getElementById('orc-cnpj').value;
-  const wpp = document.getElementById('orc-wpp').value.replace(/\D/g,'');
-  const validade = document.getElementById('orc-validade').value || '7 dias';
-  const data = new Date().toLocaleDateString('pt-BR');
-  const resp = perfilAtual ? perfilAtual.nome : 'Amber';
-  const total = orcItems.reduce((s,i) => s + i.qtd * i.preco, 0);
-
-  let msg = `🛒 *ORÇAMENTO AMBER COMÉRCIO*\n`;
-  msg += `📅 Data: ${data}\n`;
-  msg += `🏢 Cliente: ${cli}`;
-  if (cnpj) msg += ` | CNPJ: ${cnpj}`;
-  msg += `\n\n`;
-  msg += `*PRODUTOS:*\n`;
-  msg += `━━━━━━━━━━━━━━━━━━━\n`;
-  orcItems.forEach(item => {
-    msg += `▪ ${item.qtd}x ${item.nome} ${item.espec}\n`;
-    msg += `  Unit: R$ ${item.preco.toFixed(2).replace('.',',')} | Total: R$ ${(item.qtd*item.preco).toFixed(2).replace('.',',')}\n`;
-  });
-  msg += `━━━━━━━━━━━━━━━━━━━\n`;
-  msg += `💰 *TOTAL: R$ ${total.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}*\n\n`;
-  msg += `⏳ Validade: ${validade}\n`;
-  msg += `📍 Amber Comércio Ltda\n`;
-  msg += `Av. do Contorno, 1480 - Floresta, BH/MG\n`;
-  msg += `CNPJ: 61.224.719/0001-55\n\n`;
-  msg += `_Atendimento: ${resp}_`;
-
-  const encoded = encodeURIComponent(msg);
-  const url = wpp ? `https://wa.me/${wpp}?text=${encoded}` : `https://wa.me/?text=${encoded}`;
-  window.open(url, '_blank');
-}
-
-
-function gerarPDF() {
-  if (!orcItems.length) { alert('Adicione pelo menos um produto ao orçamento.'); return; }
-  const cli = document.getElementById('orc-cli').value || '—';
-  const cnpj = document.getElementById('orc-cnpj').value || '';
-  const validade = document.getElementById('orc-validade').value || '7 dias';
-  const data = new Date().toLocaleDateString('pt-BR');
-  const total = orcItems.reduce((s,i) => s + i.qtd * i.preco, 0);
-  const numOrc = 'ORC-' + new Date().getFullYear() + ('0'+(new Date().getMonth()+1)).slice(-2) + ('0'+new Date().getDate()).slice(-2) + '-' + Math.floor(Math.random()*1000).toString().padStart(3,'0');
-
-  const linhas = orcItems.map(item => `
-    <tr>
-      <td style="text-align:center;padding:8px;border:1px solid #ddd">${item.qtd}</td>
-      <td style="padding:8px;border:1px solid #ddd">${item.nome} ${item.espec}</td>
-      <td style="text-align:right;padding:8px;border:1px solid #ddd">R$ ${item.preco.toFixed(2).replace('.',',')}</td>
-      <td style="text-align:right;padding:8px;border:1px solid #ddd;font-weight:bold">R$ ${(item.qtd*item.preco).toFixed(2).replace('.',',')}</td>
-    </tr>`).join('');
-
-  const pdfHTML = `<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-<meta charset="UTF-8">
-<title>Orçamento ${numOrc} - ${cli}</title>
-<style>
-  * { margin:0; padding:0; box-sizing:border-box; }
-  body { font-family: Arial, sans-serif; font-size:13px; color:#1a1a18; padding:30px; }
-  .header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:24px; padding-bottom:16px; border-bottom:2px solid #1D9E75; }
-  .logo img { height:60px; }
-  .empresa { text-align:right; font-size:11px; color:#555; line-height:1.6; }
-  .empresa strong { font-size:13px; color:#1a1a18; }
-  h1 { font-size:16px; text-align:center; margin-bottom:20px; text-transform:uppercase; letter-spacing:1px; }
-  .info-box { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px; }
-  .info-section { background:#f8f8f6; border-radius:6px; padding:12px; }
-  .info-section label { font-size:10px; text-transform:uppercase; color:#888; letter-spacing:.5px; }
-  .info-section p { font-size:13px; font-weight:600; margin-top:2px; }
-  table { width:100%; border-collapse:collapse; margin-bottom:16px; }
-  th { background:#1D9E75; color:white; padding:10px 8px; text-align:left; font-size:12px; }
-  th:nth-child(1) { width:60px; text-align:center; }
-  th:nth-child(3), th:nth-child(4) { text-align:right; width:110px; }
-  tr:nth-child(even) td { background:#f8f8f6; }
-  .total-row { background:#1D9E75!important; }
-  .total-row td { color:white; font-weight:bold; font-size:14px; padding:10px 8px; border:none!important; }
-  .footer { margin-top:30px; border-top:1px solid #ddd; padding-top:16px; display:flex; justify-content:space-between; font-size:11px; color:#888; }
-  .assinatura { text-align:center; margin-top:40px; }
-  .assinatura .linha { border-top:1px solid #333; width:200px; margin:0 auto 4px; }
-  @media print { body { padding:15px; } button { display:none; } }
-</style>
-</head>
-<body>
-<div class="header">
-  <div class="logo"><img src="https://lorena510707.github.io/SITEAMBER/logo.jpeg" alt="Amber Comércio"></div>
-  <div class="empresa">
-    <strong>AMBER COMÉRCIO LTDA</strong><br>
-    CNPJ: 61.224.719/0001-55<br>
-    Av. do Contorno, 1480 - Floresta<br>
-    Belo Horizonte / MG<br>
-  </div>
-</div>
-
-<h1>Orçamento Comercial</h1>
-
-<div class="info-box">
-  <div class="info-section">
-    <label>Proponente</label>
-    <p>Amber Comércio Ltda</p>
-  </div>
-  <div class="info-section">
-    <label>Número do orçamento</label>
-    <p>${numOrc}</p>
-  </div>
-  <div class="info-section">
-    <label>Cliente</label>
-    <p>${cli}</p>
-    ${cnpj ? `<span style="font-size:11px;color:#666">CNPJ: ${cnpj}</span>` : ''}
-  </div>
-  <div class="info-section">
-    <label>Data / Validade</label>
-    <p>${data}</p>
-    <span style="font-size:11px;color:#666">Válido por: ${validade}</span>
-  </div>
-</div>
-
-<table>
-  <thead>
-    <tr>
-      <th>QTD</th>
-      <th>DESCRIÇÃO</th>
-      <th style="text-align:right">VALOR UNIT.</th>
-      <th style="text-align:right">VALOR TOTAL</th>
-    </tr>
-  </thead>
-  <tbody>
-    ${linhas}
-    <tr class="total-row">
-      <td colspan="3" style="text-align:right;padding:10px 8px">VALOR TOTAL</td>
-      <td style="text-align:right;padding:10px 8px">R$ ${total.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
-    </tr>
-  </tbody>
-</table>
-
-<div class="footer">
-  <div>Belo Horizonte/MG, ${data}</div>
-  <div>AMBER COMÉRCIO LTDA | CNPJ: 61.224.719/0001-55</div>
-</div>
-
-<div class="assinatura">
-  <div class="linha"></div>
-  <div style="font-size:12px">AMBER COMÉRCIO LTDA</div>
-  <div style="font-size:11px;color:#888">Nome Fantasia: POCO MIX</div>
-</div>
-
-<br><br>
-<div style="text-align:center;display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
-  <button onclick="window.print()" style="background:#1D9E75;color:white;border:none;padding:10px 24px;border-radius:6px;font-size:14px;cursor:pointer;display:inline-flex;align-items:center;gap:8px">
-    🖨 Imprimir / Salvar PDF
-  </button>
-</div>
-<p style="text-align:center;font-size:11px;color:#aaa;margin-top:12px">
-  Salve como PDF → abra no celular → compartilhe pelo WhatsApp
-</p>
-</body>
-</html>`;
-
-  const win = window.open('', '_blank');
-  win.document.write(pdfHTML);
-  win.document.close();
-  // Auto open print on mobile after load
-  win.onload = function() {
-    setTimeout(function() {
-      // Don't auto-print on desktop, only show the button
-    }, 500);
-  };
-}
-
-</script>
 </head>
 <body>
 
@@ -909,6 +106,7 @@ function gerarPDF() {
     </label>
   </div>
 </header>
+
 <nav>
   <button class="nav-btn active" onclick="showTab('painel',this)">Painel</button>
   <button class="nav-btn" onclick="showTab('estoque',this)">Estoque</button>
@@ -919,6 +117,7 @@ function gerarPDF() {
   <button class="nav-btn" onclick="showTab('orcamento',this)">Orçamento</button>
   <button class="nav-btn col-gestor" onclick="showTab('compras',this)">Compras</button>
 </nav>
+
 <main>
 
 <!-- PAINEL -->
@@ -1322,7 +521,110 @@ function gerarPDF() {
 </div>
 </main>
 
-<!-- MODAL EDITAR -->
+<div class="modal-overlay" id="modal-compra">
+  <div class="modal">
+    <div class="modal-title">Nova compra</div>
+    <div class="form-grid">
+      <div class="field"><label>Código</label><input id="c-cod" placeholder="ex: 81307"></div>
+      <div class="field"><label>Unidade</label><select id="c-un"><option>UN</option><option>SC</option><option>rolo</option><option>caixa</option></select></div>
+      <div class="field"><label>Quantidade</label><input id="c-qtd" type="number" min="1" placeholder="0"></div>
+      <div class="field"><label>Data recebimento</label><input id="c-data" type="date"></div>
+    </div>
+    <div class="form-grid">
+      <div class="field" style="grid-column:1/-1"><label>Descrição</label><input id="c-desc" placeholder="Descrição do produto"></div>
+    </div>
+    <div class="form-grid">
+      <div class="field"><label>Valor compra (R$)</label><input id="c-vcompra" type="number" step="0.01" placeholder="0,00"></div>
+      <div class="field"><label>Valor venda (R$)</label><input id="c-vvenda" type="number" step="0.01" placeholder="0,00"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModalCompra()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarCompra()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-vincular">
+  <div class="modal" style="width:560px">
+    <div class="modal-title">Dar entrada no estoque</div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:12px;" id="vincular-desc"></div>
+    <div class="field" style="margin-bottom:12px;">
+      <label>Buscar produto no estoque</label>
+      <input id="vincular-busca" placeholder="Digite para filtrar..." oninput="filtrarVincular()">
+    </div>
+    <div id="vincular-lista" style="max-height:240px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:12px;"></div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:8px;">Ou crie um novo produto:</div>
+    <button class="btn btn-sm" onclick="vincularNovo()" style="margin-bottom:4px;">+ Criar novo produto no estoque</button>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModalVincular()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-edit-boleto">
+  <div class="modal">
+    <div class="modal-title">Editar recebimento</div>
+    <div class="form-grid">
+      <div class="field"><label>Data / Vencimento</label><input id="eb-venc" type="date"></div>
+      <div class="field"><label>Cliente</label><input id="eb-cli" placeholder="Nome do cliente"></div>
+      <div class="field"><label>Valor (R$)</label><input id="eb-val" type="number" step="0.01"></div>
+      <div class="field"><label>Forma de pagamento</label>
+        <select id="eb-pgto">
+          <option value="Boleto">Boleto (a receber)</option>
+          <option value="PIX">PIX (recebido)</option>
+          <option value="Dinheiro">Dinheiro (recebido)</option>
+          <option value="Cartão de crédito">Cartão de crédito (recebido)</option>
+          <option value="Cartão de débito">Cartão de débito (recebido)</option>
+          <option value="Transferência">Transferência (recebido)</option>
+          <option value="À vista">À vista (recebido)</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-grid">
+      <div class="field"><label>Mês de referência</label>
+        <select id="eb-mes">
+          <option>Maio/2026</option><option>Junho/2026</option><option>Julho/2026</option>
+          <option>Agosto/2026</option><option>Setembro/2026</option><option>Outubro/2026</option>
+          <option>Novembro/2026</option><option>Dezembro/2026</option>
+        </select>
+      </div>
+      <div class="field" style="grid-column:1/-1"><label>Observação</label>
+        <input id="eb-obs" placeholder="NF, referência...">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModalEditBoleto()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarEditBoleto()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-boleto-pago">
+  <div class="modal" style="width:420px">
+    <div class="modal-title">✓ Marcar boleto como pago</div>
+    <div id="boleto-pago-info" style="background:var(--bg);border-radius:var(--radius-sm);padding:12px;margin-bottom:16px;font-size:13px;"></div>
+    <div class="form-grid">
+      <div class="field"><label>Data do pagamento</label><input id="bp-data" type="date"></div>
+      <div class="field"><label>Forma de pagamento</label>
+        <select id="bp-pgto">
+          <option value="PIX">PIX</option>
+          <option value="Dinheiro">Dinheiro</option>
+          <option value="Transferência">Transferência</option>
+          <option value="Cartão de crédito">Cartão de crédito</option>
+          <option value="Cartão de débito">Cartão de débito</option>
+        </select>
+      </div>
+    </div>
+    <div class="field" style="margin-bottom:12px"><label>Observação</label>
+      <input id="bp-obs" placeholder="NF, referência, depósito...">
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModalBoletoPago()">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmarBoletoPago()">✓ Confirmar pagamento</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal-edit">
   <div class="modal">
     <div class="modal-title">Editar produto</div>
@@ -1547,49 +849,69 @@ const COMPRAS_INIT=[
 ];
 
 function load(){
-  // Show loading indicator
-  document.getElementById('last-save').textContent = 'Conectando...';
-  
-  firebaseDB.ref('amber').on('value', function(snapshot) {
-    const data = snapshot.val();
-    if (data) {
-      db = data;
-      if (!db.compras) db.compras = [];
-      if (!db.boletos) db.boletos = [];
-      if (!db.movs) db.movs = [];
-      if (!db.produtos) db.produtos = [];
-    } else {
-      // First time - initialize with default data
-      db.produtos = [...DUCHA,...CABO,...OUTROS];
-      db.movs = [...MOVS_INIT];
-      db.boletos = [...BOLETOS_INIT];
-      db.compras = [...COMPRAS_INIT];
-      save();
-    }
-    if (perfilAtual) renderAll();
-    document.getElementById('last-save').textContent = 'Sincronizado às ' + new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
-  }, function(error) {
-    document.getElementById('last-save').textContent = 'Erro de conexão';
-    // Fallback to localStorage
-    const saved = localStorage.getItem(KEY);
-    if (saved) db = JSON.parse(saved);
-    else { db.produtos=[...DUCHA,...CABO,...OUTROS];db.movs=[...MOVS_INIT];db.boletos=[...BOLETOS_INIT];db.compras=[...COMPRAS_INIT]; }
-    if (perfilAtual) renderAll();
-  });
+  try {
+    if (typeof firebaseDB === 'undefined' || !firebaseDB) throw new Error('Firebase not available');
+    document.getElementById('last-save').textContent = 'Conectando...';
+    firebaseDB.ref('amber').on('value', function(snapshot) {
+      const data = snapshot.val();
+      if (data) {
+        db = data;
+        if (!db.compras) db.compras = [];
+        if (!db.boletos) db.boletos = [];
+        if (!db.movs) db.movs = [];
+        if (!db.produtos) db.produtos = [];
+      } else {
+        db.produtos = [...DUCHA,...CABO,...OUTROS];
+        db.movs = [...MOVS_INIT];
+        db.boletos = [...BOLETOS_INIT];
+        db.compras = [...COMPRAS_INIT];
+        save();
+      }
+      if (perfilAtual) renderAll();
+      document.getElementById('last-save').textContent = 'Sincronizado às ' + new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+    }, function(error) {
+      loadFromLocalStorage();
+    });
+  } catch(e) {
+    loadFromLocalStorage();
+  }
+}
+
+function loadFromLocalStorage(){
+  document.getElementById('last-save').textContent = 'Modo offline';
+  const saved = localStorage.getItem(KEY);
+  if (saved) {
+    db = JSON.parse(saved);
+    if (!db.compras) db.compras = [];
+    if (!db.boletos) db.boletos = [];
+    if (!db.movs) db.movs = [];
+    if (!db.produtos) db.produtos = [];
+  } else {
+    db.produtos=[...DUCHA,...CABO,...OUTROS];
+    db.movs=[...MOVS_INIT];
+    db.boletos=[...BOLETOS_INIT];
+    db.compras=[...COMPRAS_INIT];
+  }
+  if (perfilAtual) renderAll();
 }
 function save(){
-  // Save to Firebase (real-time sync for all users)
-  firebaseDB.ref('amber').set(db).then(function() {
+  localStorage.setItem(KEY, JSON.stringify(db));
+  try {
+    if (typeof firebaseDB !== 'undefined' && firebaseDB) {
+      firebaseDB.ref('amber').set(db).then(function() {
+        const now = new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+        document.getElementById('last-save').textContent = 'Salvo às ' + now;
+      }).catch(function(error) {
+        document.getElementById('last-save').textContent = 'Salvo localmente';
+      });
+    } else {
+      const now = new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+      document.getElementById('last-save').textContent = 'Salvo às ' + now;
+    }
+  } catch(e) {
     const now = new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
     document.getElementById('last-save').textContent = 'Salvo às ' + now;
-  }).catch(function(error) {
-    console.error('Firebase save error:', error);
-    // Fallback to localStorage
-    localStorage.setItem(KEY, JSON.stringify(db));
-    document.getElementById('last-save').textContent = 'Salvo localmente';
-  });
-  // Also save locally as backup
-  localStorage.setItem(KEY, JSON.stringify(db));
+  }
 }
 function status(p){if(p.qtd===0||p.qtd<p.min)return'crit';if(p.qtd<=p.min*1.5)return'warn';return'ok';}
 function badgeStatus(p){const s=status(p);if(s==='crit')return'<span class="badge badge-crit">Crítico</span>';if(s==='warn')return'<span class="badge badge-warn">Atenção</span>';return'<span class="badge badge-ok">OK</span>';}
@@ -2566,6 +1888,291 @@ function gerarPDF() {
 <p style="text-align:center;font-size:11px;color:#aaa;margin-top:12px">
   Salve como PDF → abra no celular → compartilhe pelo WhatsApp
 </p>
+`;
+
+  const win = window.open('', '_blank');
+  win.document.write(pdfHTML);
+  win.document.close();
+}
+
+</script>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script>
+try {
+  firebase.initializeApp({
+    apiKey: "AIzaSyB6zTKLYrmb4AsCQwOKvLdGSWOVNFUqoDU",
+    authDomain: "ambercomercio.firebaseapp.com",
+    databaseURL: "https://ambercomercio-default-rtdb.firebaseio.com",
+    projectId: "ambercomercio",
+    storageBucket: "ambercomercio.firebasestorage.app",
+    messagingSenderId: "749296990361",
+    appId: "1:749296990361:web:339845e499c8455e3aa008"
+  });
+  window.firebaseDB = firebase.database();
+} catch(e) {
+  window.firebaseDB = null;
+}
+</script>
+
+<script>
+let orcItems = [];
+let orcProdSelecionado = null;
+
+function buscarProdOrc() {
+  const busca = document.getElementById('orc-busca-prod').value.toLowerCase();
+  const lista = document.getElementById('orc-lista-prod');
+  if (!busca) { lista.style.display='none'; return; }
+  const ps = db.produtos.filter(p => `${p.nome} ${p.espec} ${p.marca}`.toLowerCase().includes(busca));
+  if (!ps.length) { lista.innerHTML='<div class="empty" style="padding:10px">Nenhum produto encontrado</div>'; lista.style.display='block'; return; }
+  lista.style.display = 'block';
+  lista.innerHTML = ps.map((p,i) => {
+    const idx = db.produtos.indexOf(p);
+    return `<div onclick="selecionarProdOrc(${idx})" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border);display:flex;justify-content:space-between" onmouseover="this.style.background='#f5f5f3'" onmouseout="this.style.background=''">
+      <div><strong>${p.nome}</strong> <span style="color:var(--text3)">${p.espec}</span></div>
+      <div style="color:var(--verde);font-weight:600">${p.preco ? 'R$ ' + p.preco.toFixed(2).replace('.',',') : '—'}</div>
+    </div>`;
+  }).join('');
+}
+
+function selecionarProdOrc(idx) {
+  const p = db.produtos[idx];
+  orcProdSelecionado = p;
+  document.getElementById('orc-prod-nome').value = p.nome + ' ' + p.espec;
+  document.getElementById('orc-prod-preco').value = p.preco || '';
+  document.getElementById('orc-prod-qtd').value = 1;
+  document.getElementById('orc-add-fields').style.display = 'grid';
+  document.getElementById('orc-lista-prod').style.display = 'none';
+  document.getElementById('orc-busca-prod').value = '';
+}
+
+function addItemOrc() {
+  if (!orcProdSelecionado) return;
+  const qtd = parseInt(document.getElementById('orc-prod-qtd').value) || 1;
+  const preco = parseFloat(document.getElementById('orc-prod-preco').value) || 0;
+  // Check if already in list
+  const existing = orcItems.find(i => i.nome === orcProdSelecionado.nome && i.espec === orcProdSelecionado.espec);
+  if (existing) {
+    existing.qtd += qtd;
+    existing.preco = preco;
+  } else {
+    orcItems.push({ nome: orcProdSelecionado.nome, espec: orcProdSelecionado.espec, qtd, preco });
+  }
+  orcProdSelecionado = null;
+  document.getElementById('orc-add-fields').style.display = 'none';
+  document.getElementById('orc-prod-nome').value = '';
+  renderOrcPreview();
+}
+
+function removerItemOrc(i) {
+  orcItems.splice(i, 1);
+  renderOrcPreview();
+}
+
+function renderOrcPreview() {
+  const el = document.getElementById('orc-preview');
+  if (!orcItems.length) { el.innerHTML = '<div class="empty">Adicione produtos para montar o orçamento</div>'; return; }
+  const cli = document.getElementById('orc-cli').value || '—';
+  const total = orcItems.reduce((s, i) => s + i.qtd * i.preco, 0);
+  el.innerHTML = `
+    <div style="font-size:12px;color:var(--text3);margin-bottom:12px">
+      <strong style="color:var(--text)">${cli}</strong><br>
+      Data: ${new Date().toLocaleDateString('pt-BR')}
+    </div>
+    <table style="width:100%;font-size:13px;border-collapse:collapse">
+      <thead><tr style="background:var(--bg)">
+        <th style="padding:6px 8px;text-align:left;font-size:11px;color:var(--text3)">QTD</th>
+        <th style="padding:6px 8px;text-align:left;font-size:11px;color:var(--text3)">PRODUTO</th>
+        <th style="padding:6px 8px;text-align:right;font-size:11px;color:var(--text3)">UNIT.</th>
+        <th style="padding:6px 8px;text-align:right;font-size:11px;color:var(--text3)">TOTAL</th>
+        <th style="width:30px"></th>
+      </tr></thead>
+      <tbody>
+        ${orcItems.map((item,i) => `<tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:6px 8px">${item.qtd}</td>
+          <td style="padding:6px 8px"><strong>${item.nome}</strong> <span style="color:var(--text3)">${item.espec}</span></td>
+          <td style="padding:6px 8px;text-align:right">R$ ${item.preco.toFixed(2).replace('.',',')}</td>
+          <td style="padding:6px 8px;text-align:right;font-weight:600">R$ ${(item.qtd*item.preco).toFixed(2).replace('.',',')}</td>
+          <td style="padding:6px 8px"><button onclick="removerItemOrc(${i})" style="background:none;border:none;cursor:pointer;color:#A32D2D;font-size:14px">✕</button></td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+    <div style="text-align:right;padding:12px 8px;border-top:2px solid var(--border);margin-top:4px">
+      <span style="font-size:15px;font-weight:600;color:var(--verde)">Total: R$ ${total.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}</span>
+    </div>`;
+}
+
+function limparOrc() {
+  if (orcItems.length && !confirm('Limpar orçamento?')) return;
+  orcItems = [];
+  ['orc-cli','orc-cnpj','orc-wpp','orc-validade'].forEach(id => document.getElementById(id).value = '');
+  renderOrcPreview();
+}
+
+function enviarWhatsApp() {
+  if (!orcItems.length) { alert('Adicione pelo menos um produto ao orçamento.'); return; }
+  const cli = document.getElementById('orc-cli').value || 'Cliente';
+  const cnpj = document.getElementById('orc-cnpj').value;
+  const wpp = document.getElementById('orc-wpp').value.replace(/\D/g,'');
+  const validade = document.getElementById('orc-validade').value || '7 dias';
+  const data = new Date().toLocaleDateString('pt-BR');
+  const resp = perfilAtual ? perfilAtual.nome : 'Amber';
+  const total = orcItems.reduce((s,i) => s + i.qtd * i.preco, 0);
+
+  let msg = `🛒 *ORÇAMENTO AMBER COMÉRCIO*\n`;
+  msg += `📅 Data: ${data}\n`;
+  msg += `🏢 Cliente: ${cli}`;
+  if (cnpj) msg += ` | CNPJ: ${cnpj}`;
+  msg += `\n\n`;
+  msg += `*PRODUTOS:*\n`;
+  msg += `━━━━━━━━━━━━━━━━━━━\n`;
+  orcItems.forEach(item => {
+    msg += `▪ ${item.qtd}x ${item.nome} ${item.espec}\n`;
+    msg += `  Unit: R$ ${item.preco.toFixed(2).replace('.',',')} | Total: R$ ${(item.qtd*item.preco).toFixed(2).replace('.',',')}\n`;
+  });
+  msg += `━━━━━━━━━━━━━━━━━━━\n`;
+  msg += `💰 *TOTAL: R$ ${total.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}*\n\n`;
+  msg += `⏳ Validade: ${validade}\n`;
+  msg += `📍 Amber Comércio Ltda\n`;
+  msg += `Av. do Contorno, 1480 - Floresta, BH/MG\n`;
+  msg += `CNPJ: 61.224.719/0001-55\n\n`;
+  msg += `_Atendimento: ${resp}_`;
+
+  const encoded = encodeURIComponent(msg);
+  const url = wpp ? `https://wa.me/${wpp}?text=${encoded}` : `https://wa.me/?text=${encoded}`;
+  window.open(url, '_blank');
+}
+
+
+function gerarPDF() {
+  if (!orcItems.length) { alert('Adicione pelo menos um produto ao orçamento.'); return; }
+  const cli = document.getElementById('orc-cli').value || '—';
+  const cnpj = document.getElementById('orc-cnpj').value || '';
+  const validade = document.getElementById('orc-validade').value || '7 dias';
+  const data = new Date().toLocaleDateString('pt-BR');
+  const total = orcItems.reduce((s,i) => s + i.qtd * i.preco, 0);
+  const numOrc = 'ORC-' + new Date().getFullYear() + ('0'+(new Date().getMonth()+1)).slice(-2) + ('0'+new Date().getDate()).slice(-2) + '-' + Math.floor(Math.random()*1000).toString().padStart(3,'0');
+
+  const linhas = orcItems.map(item => `
+    <tr>
+      <td style="text-align:center;padding:8px;border:1px solid #ddd">${item.qtd}</td>
+      <td style="padding:8px;border:1px solid #ddd">${item.nome} ${item.espec}</td>
+      <td style="text-align:right;padding:8px;border:1px solid #ddd">R$ ${item.preco.toFixed(2).replace('.',',')}</td>
+      <td style="text-align:right;padding:8px;border:1px solid #ddd;font-weight:bold">R$ ${(item.qtd*item.preco).toFixed(2).replace('.',',')}</td>
+    </tr>`).join('');
+
+  const pdfHTML = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Orçamento ${numOrc} - ${cli}</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: Arial, sans-serif; font-size:13px; color:#1a1a18; padding:30px; }
+  .header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:24px; padding-bottom:16px; border-bottom:2px solid #1D9E75; }
+  .logo img { height:60px; }
+  .empresa { text-align:right; font-size:11px; color:#555; line-height:1.6; }
+  .empresa strong { font-size:13px; color:#1a1a18; }
+  h1 { font-size:16px; text-align:center; margin-bottom:20px; text-transform:uppercase; letter-spacing:1px; }
+  .info-box { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px; }
+  .info-section { background:#f8f8f6; border-radius:6px; padding:12px; }
+  .info-section label { font-size:10px; text-transform:uppercase; color:#888; letter-spacing:.5px; }
+  .info-section p { font-size:13px; font-weight:600; margin-top:2px; }
+  table { width:100%; border-collapse:collapse; margin-bottom:16px; }
+  th { background:#1D9E75; color:white; padding:10px 8px; text-align:left; font-size:12px; }
+  th:nth-child(1) { width:60px; text-align:center; }
+  th:nth-child(3), th:nth-child(4) { text-align:right; width:110px; }
+  tr:nth-child(even) td { background:#f8f8f6; }
+  .total-row { background:#1D9E75!important; }
+  .total-row td { color:white; font-weight:bold; font-size:14px; padding:10px 8px; border:none!important; }
+  .footer { margin-top:30px; border-top:1px solid #ddd; padding-top:16px; display:flex; justify-content:space-between; font-size:11px; color:#888; }
+  .assinatura { text-align:center; margin-top:40px; }
+  .assinatura .linha { border-top:1px solid #333; width:200px; margin:0 auto 4px; }
+  @media print { body { padding:15px; } button { display:none; } }
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="logo"><img src="https://lorena510707.github.io/SITEAMBER/logo.jpeg" alt="Amber Comércio"></div>
+  <div class="empresa">
+    <strong>AMBER COMÉRCIO LTDA</strong><br>
+    CNPJ: 61.224.719/0001-55<br>
+    Av. do Contorno, 1480 - Floresta<br>
+    Belo Horizonte / MG<br>
+  </div>
+</div>
+
+<h1>Orçamento Comercial</h1>
+
+<div class="info-box">
+  <div class="info-section">
+    <label>Proponente</label>
+    <p>Amber Comércio Ltda</p>
+  </div>
+  <div class="info-section">
+    <label>Número do orçamento</label>
+    <p>${numOrc}</p>
+  </div>
+  <div class="info-section">
+    <label>Cliente</label>
+    <p>${cli}</p>
+    ${cnpj ? `<span style="font-size:11px;color:#666">CNPJ: ${cnpj}</span>` : ''}
+  </div>
+  <div class="info-section">
+    <label>Data / Validade</label>
+    <p>${data}</p>
+    <span style="font-size:11px;color:#666">Válido por: ${validade}</span>
+  </div>
+</div>
+
+<table>
+  <thead>
+    <tr>
+      <th>QTD</th>
+      <th>DESCRIÇÃO</th>
+      <th style="text-align:right">VALOR UNIT.</th>
+      <th style="text-align:right">VALOR TOTAL</th>
+    </tr>
+  </thead>
+  <tbody>
+    ${linhas}
+    <tr class="total-row">
+      <td colspan="3" style="text-align:right;padding:10px 8px">VALOR TOTAL</td>
+      <td style="text-align:right;padding:10px 8px">R$ ${total.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="footer">
+  <div>Belo Horizonte/MG, ${data}</div>
+  <div>AMBER COMÉRCIO LTDA | CNPJ: 61.224.719/0001-55</div>
+</div>
+
+<div class="assinatura">
+  <div class="linha"></div>
+  <div style="font-size:12px">AMBER COMÉRCIO LTDA</div>
+  <div style="font-size:11px;color:#888">Nome Fantasia: POCO MIX</div>
+</div>
+
+<br><br>
+<div style="text-align:center;display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+  <button onclick="window.print()" style="background:#1D9E75;color:white;border:none;padding:10px 24px;border-radius:6px;font-size:14px;cursor:pointer;display:inline-flex;align-items:center;gap:8px">
+    🖨 Imprimir / Salvar PDF
+  </button>
+</div>
+<p style="text-align:center;font-size:11px;color:#aaa;margin-top:12px">
+  Salve como PDF → abra no celular → compartilhe pelo WhatsApp
+</p>
+
+
+
+
+
+
+
+<!-- Firebase SDK -->
 </body>
 </html>`;
 
@@ -2581,5 +2188,28 @@ function gerarPDF() {
 }
 
 </script>
+
+
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script>
+try {
+  firebase.initializeApp({
+    apiKey: "AIzaSyB6zTKLYrmb4AsCQwOKvLdGSWOVNFUqoDU",
+    authDomain: "ambercomercio.firebaseapp.com",
+    databaseURL: "https://ambercomercio-default-rtdb.firebaseio.com",
+    projectId: "ambercomercio",
+    storageBucket: "ambercomercio.firebasestorage.app",
+    messagingSenderId: "749296990361",
+    appId: "1:749296990361:web:339845e499c8455e3aa008"
+  });
+  window.firebaseDB = firebase.database();
+} catch(e) {
+  window.firebaseDB = null;
+}
+</script>
+
 </body>
 </html>
