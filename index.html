@@ -76,6 +76,23 @@ input:focus,select:focus{border-color:var(--verde);box-shadow:0 0 0 3px rgba(29,
 .badge-gestor{background:#E6F1FB;color:#0C447C;}
 .badge-vendedor{background:#EAF3DE;color:#27500A;}
 </style>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyB6zTKLYrmb4AsCQwOKvLdGSWOVNFUqoDU",
+      authDomain: "ambercomercio.firebaseapp.com",
+      databaseURL: "https://ambercomercio-default-rtdb.firebaseio.com",
+      projectId: "ambercomercio",
+      storageBucket: "ambercomercio.firebasestorage.app",
+      messagingSenderId: "749296990361",
+      appId: "1:749296990361:web:339845e499c8455e3aa008"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const firebaseDB = firebase.database();
+  </script>
 </head>
 <body>
 
@@ -515,10 +532,10 @@ function fazerLogin(){
     const csv=document.querySelector('button[onclick="exportCSV()"]');
     if(csv)csv.style.display='none';
   }
-  load();renderAll();
+  load(); // load() will call renderAll() after Firebase sync
 }
 
-const KEY='amber-v18';
+const KEY='amber-v19';
 let db={produtos:[],movs:[],boletos:[]};
 let editIdx=null;
 
@@ -680,14 +697,49 @@ const COMPRAS_INIT=[
 ];
 
 function load(){
-  const saved=localStorage.getItem(KEY);
-  if(saved){db=JSON.parse(saved);}
-  else{db.produtos=[...DUCHA,...CABO,...OUTROS];db.movs=[...MOVS_INIT];db.boletos=[...BOLETOS_INIT];db.compras=[...COMPRAS_INIT];save();}
+  // Show loading indicator
+  document.getElementById('last-save').textContent = 'Conectando...';
+  
+  firebaseDB.ref('amber').on('value', function(snapshot) {
+    const data = snapshot.val();
+    if (data) {
+      db = data;
+      if (!db.compras) db.compras = [];
+      if (!db.boletos) db.boletos = [];
+      if (!db.movs) db.movs = [];
+      if (!db.produtos) db.produtos = [];
+    } else {
+      // First time - initialize with default data
+      db.produtos = [...DUCHA,...CABO,...OUTROS];
+      db.movs = [...MOVS_INIT];
+      db.boletos = [...BOLETOS_INIT];
+      db.compras = [...COMPRAS_INIT];
+      save();
+    }
+    if (perfilAtual) renderAll();
+    document.getElementById('last-save').textContent = 'Sincronizado às ' + new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  }, function(error) {
+    document.getElementById('last-save').textContent = 'Erro de conexão';
+    // Fallback to localStorage
+    const saved = localStorage.getItem(KEY);
+    if (saved) db = JSON.parse(saved);
+    else { db.produtos=[...DUCHA,...CABO,...OUTROS];db.movs=[...MOVS_INIT];db.boletos=[...BOLETOS_INIT];db.compras=[...COMPRAS_INIT]; }
+    if (perfilAtual) renderAll();
+  });
 }
 function save(){
-  localStorage.setItem(KEY,JSON.stringify(db));
-  const now=new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
-  document.getElementById('last-save').textContent='Salvo às '+now;
+  // Save to Firebase (real-time sync for all users)
+  firebaseDB.ref('amber').set(db).then(function() {
+    const now = new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+    document.getElementById('last-save').textContent = 'Salvo às ' + now;
+  }).catch(function(error) {
+    console.error('Firebase save error:', error);
+    // Fallback to localStorage
+    localStorage.setItem(KEY, JSON.stringify(db));
+    document.getElementById('last-save').textContent = 'Salvo localmente';
+  });
+  // Also save locally as backup
+  localStorage.setItem(KEY, JSON.stringify(db));
 }
 function status(p){if(p.qtd===0||p.qtd<p.min)return'crit';if(p.qtd<=p.min*1.5)return'warn';return'ok';}
 function badgeStatus(p){const s=status(p);if(s==='crit')return'<span class="badge badge-crit">Crítico</span>';if(s==='warn')return'<span class="badge badge-warn">Atenção</span>';return'<span class="badge badge-ok">OK</span>';}
