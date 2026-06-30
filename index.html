@@ -1066,7 +1066,10 @@ function load(){
         db.compras = [...COMPRAS_INIT];
         save();
       }
-      if (perfilAtual) renderAll();
+      if (perfilAtual) {
+        renderAll();
+        if (typeof renderUsuarios === 'function') renderUsuarios();
+      }
       document.getElementById('last-save').textContent = 'Sincronizado às ' + new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
     }, function(error) {
       loadFromLocalStorage();
