@@ -116,6 +116,7 @@ input:focus,select:focus{border-color:var(--verde);box-shadow:0 0 0 3px rgba(29,
   <button class="nav-btn" onclick="showTab('produtos',this)">+ Produto</button>
   <button class="nav-btn" onclick="showTab('orcamento',this)">Orçamento</button>
   <button class="nav-btn col-gestor" onclick="showTab('compras',this)">Compras</button>
+  <button class="nav-btn col-gestor" onclick="showTab('usuarios',this)">Usuários</button>
 </nav>
 
 <main>
@@ -540,10 +541,10 @@ input:focus,select:focus{border-color:var(--verde);box-shadow:0 0 0 3px rgba(29,
           <th style="width:80px">Data</th>
           <th>Cliente</th>
           <th style="width:80px">Vendedor</th>
-          <th>Produtos</th>
+          <th style="width:70px">Itens</th>
           <th style="width:90px">Total</th>
           <th style="width:80px">Status</th>
-          <th style="width:60px"></th>
+          <th style="width:110px"></th>
         </tr></thead>
         <tbody></tbody>
       </table>
@@ -587,6 +588,112 @@ input:focus,select:focus{border-color:var(--verde);box-shadow:0 0 0 3px rgba(29,
     <div class="modal-footer">
       <button class="btn" onclick="closeModalPedido()">Cancelar</button>
       <button class="btn btn-primary" onclick="finalizarPedido()">✓ Confirmar e atualizar estoque</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL DETALHES ORÇAMENTO -->
+<div class="modal-overlay" id="modal-orc-detalhes">
+  <div class="modal" style="width:560px">
+    <div class="modal-title" id="orc-det-titulo">Detalhes do Orçamento</div>
+    <div id="orc-det-info" style="background:var(--bg);border-radius:var(--radius-sm);padding:12px;margin-bottom:16px;font-size:13px;display:grid;grid-template-columns:1fr 1fr;gap:8px"></div>
+    <div class="table-wrap" style="max-height:300px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius-sm)">
+      <table>
+        <thead><tr>
+          <th style="width:50px">Qtd</th>
+          <th>Produto</th>
+          <th style="width:90px">Unit.</th>
+          <th style="width:90px">Total</th>
+        </tr></thead>
+        <tbody id="orc-det-itens"></tbody>
+      </table>
+    </div>
+    <div style="text-align:right;padding:12px 4px;font-size:15px;font-weight:600;color:var(--verde)" id="orc-det-total"></div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModalOrcDetalhes()">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- USUÁRIOS -->
+<div id="tab-usuarios" class="section">
+  <div class="card">
+    <div class="card-header"><span class="card-title">Gerenciar usuários e senhas</span></div>
+    <div class="card-body">
+      <div class="table-wrap">
+        <table id="tbl-usuarios">
+          <thead><tr>
+            <th style="width:100px">Tipo</th>
+            <th>Nome</th>
+            <th style="width:150px">Senha</th>
+            <th style="width:120px"></th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><span class="card-title">+ Adicionar novo usuário</span></div>
+    <div class="card-body">
+      <div class="form-grid">
+        <div class="field"><label>Tipo</label>
+          <select id="usr-tipo">
+            <option value="vendedor">Vendedor</option>
+            <option value="gestor">Gestor</option>
+          </select>
+        </div>
+        <div class="field"><label>Nome</label><input id="usr-nome" placeholder="Nome do usuário"></div>
+        <div class="field"><label>Senha</label><input id="usr-senha" placeholder="Senha de acesso"></div>
+        <div class="field" style="display:flex;align-items:flex-end">
+          <button class="btn btn-primary" style="width:100%" onclick="addUsuario()">+ Adicionar</button>
+        </div>
+      </div>
+      <div class="feedback" id="usr-feedback"></div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL ALTERAR SENHA (próprio usuário) -->
+<div class="modal-overlay" id="modal-trocar-senha">
+  <div class="modal" style="width:380px">
+    <div class="modal-title">Alterar minha senha</div>
+    <div class="field" style="margin-bottom:12px">
+      <label>Senha atual</label>
+      <input id="ts-atual" type="password" placeholder="Digite sua senha atual">
+    </div>
+    <div class="field" style="margin-bottom:12px">
+      <label>Nova senha</label>
+      <input id="ts-nova" type="password" placeholder="Digite a nova senha">
+    </div>
+    <div class="field" style="margin-bottom:12px">
+      <label>Confirmar nova senha</label>
+      <input id="ts-confirma" type="password" placeholder="Repita a nova senha">
+    </div>
+    <div class="feedback" id="ts-feedback"></div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModalTrocarSenha()">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmarTrocaSenha()">Salvar nova senha</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL EDITAR USUÁRIO (gestor) -->
+<div class="modal-overlay" id="modal-edit-usuario">
+  <div class="modal" style="width:380px">
+    <div class="modal-title">Editar usuário</div>
+    <div class="field" style="margin-bottom:12px">
+      <label>Nome</label>
+      <input id="eu-nome" placeholder="Nome do usuário">
+    </div>
+    <div class="field" style="margin-bottom:12px">
+      <label>Nova senha</label>
+      <input id="eu-senha" placeholder="Nova senha de acesso">
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModalEditUsuario()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarEditUsuario()">Salvar</button>
     </div>
   </div>
 </div>
@@ -728,7 +835,8 @@ let perfilAtual=null;
 
 function fazerLogin(){
   const senha=document.getElementById('login-senha').value.trim();
-  const perfil=PERFIS[senha];
+  const usuarios=(db&&db.usuarios)?db.usuarios:PERFIS;
+  const perfil=usuarios[senha];
   if(!perfil){
     document.getElementById('login-error').style.display='block';
     document.getElementById('login-senha').value='';
@@ -745,6 +853,11 @@ function fazerLogin(){
   btnSair.className='btn btn-sm';btnSair.textContent='Sair';btnSair.style.fontSize='11px';
   btnSair.onclick=()=>location.reload();
   badge.insertAdjacentElement('afterend',btnSair);
+  // Botão trocar senha
+  const btnSenha=document.createElement('button');
+  btnSenha.className='btn btn-sm';btnSenha.textContent='🔑 Senha';btnSenha.style.fontSize='11px';
+  btnSenha.onclick=abrirTrocarSenha;
+  btnSair.insertAdjacentElement('afterend',btnSenha);
   // restringir vendedor
   if(perfil.tipo!=='gestor'){
     document.body.classList.add('vendedor-mode');
@@ -973,12 +1086,14 @@ function loadFromLocalStorage(){
     if (!db.movs) db.movs = [];
     if (!db.produtos) db.produtos = [];
     if (!db.orcamentos) db.orcamentos = [];
+    if (!db.usuarios) db.usuarios = JSON.parse(JSON.stringify(PERFIS));
   } else {
     db.produtos=[...DUCHA,...CABO,...OUTROS];
     db.movs=[...MOVS_INIT];
     db.boletos=[...BOLETOS_INIT];
     db.compras=[...COMPRAS_INIT];
     db.orcamentos=[];
+    db.usuarios=JSON.parse(JSON.stringify(PERFIS));
   }
   if (perfilAtual) renderAll();
 }
@@ -1024,7 +1139,7 @@ function showTab(id,btn){
   renderAll();
 }
 
-function renderAll(){renderMetrics();renderAlertas();renderLinhas();renderEstoque();renderHistorico();renderBoletos();if(typeof renderCompras==='function')renderCompras();populateProdutoSelect();populateRespSelect();populateMesSelect();renderOrcHistorico();}
+function renderAll(){renderMetrics();renderAlertas();renderLinhas();renderEstoque();renderHistorico();renderBoletos();if(typeof renderCompras==='function')renderCompras();populateProdutoSelect();populateRespSelect();populateMesSelect();renderOrcHistorico();if(typeof renderUsuarios==='function')renderUsuarios();}
 
 function renderMetrics(){
   const total=db.produtos.length;
@@ -1733,6 +1848,8 @@ function importBackup(event) {
       if (!db.movs) db.movs = [];
       if (!db.produtos) db.produtos = [];
       if (!db.orcamentos) db.orcamentos = [];
+    if (!db.usuarios) db.usuarios = JSON.parse(JSON.stringify(PERFIS));
+      if (!db.usuarios) db.usuarios = JSON.parse(JSON.stringify(PERFIS));
       save();
       renderAll();
       alert('✓ Backup restaurado com sucesso!\n\nProdutos: ' + db.produtos.length + '\nMovimentações: ' + db.movs.length + '\nRecebimentos: ' + db.boletos.length);
@@ -2035,16 +2152,17 @@ function renderOrcHistorico(){
     const statusBadge=o.status==='Confirmado'
       ?'<span class="badge badge-ok">Confirmado</span>'
       :'<span class="badge badge-warn">Pendente</span>';
-    const itensDesc=o.itens.map(it=>`${it.qtd}x ${it.nome} ${it.espec}`).join(', ');
+    const totalItens=o.itens.reduce((s,it)=>s+it.qtd,0);
     return`<tr>
       <td style="color:var(--text3);font-size:11px">${o.num||'—'}</td>
       <td style="color:var(--text3);white-space:nowrap">${o.data}</td>
       <td><strong>${o.cliente||'—'}</strong></td>
       <td>${o.vendedor||'—'}</td>
-      <td style="color:var(--text2);font-size:12px">${itensDesc}</td>
+      <td style="text-align:center"><span class="badge" style="background:#E6F1FB;color:#0C447C">${o.itens.length} ${o.itens.length===1?'item':'itens'}</span></td>
       <td><strong>${fmt(o.total)}</strong></td>
       <td>${statusBadge}</td>
-      <td style="display:flex;gap:4px">
+      <td style="display:flex;gap:4px;flex-wrap:wrap">
+        <button class="btn btn-sm" style="font-size:11px" onclick="verDetalhesOrc(${realIdx})">👁 Ver</button>
         ${o.status!=='Confirmado'?`<button class="btn btn-primary btn-sm" style="font-size:11px" onclick="confirmarPedidoFromHist(${realIdx})">✓ Pedido</button>`:''}
         <button class="btn btn-danger btn-sm" onclick="removerOrcamento(${realIdx})">✕</button>
       </td>
@@ -2209,6 +2327,153 @@ function finalizarPedido(){
   limparOrc();
   renderAll();
   alert('✓ Pedido confirmado! Estoque atualizado e lançado nos recebimentos.');
+}
+
+
+function verDetalhesOrc(idx){
+  const o=db.orcamentos[idx];
+  if(!o)return;
+  document.getElementById('orc-det-titulo').textContent='Orçamento '+(o.num||'');
+  const statusBadge=o.status==='Confirmado'
+    ?'<span class="badge badge-ok">Confirmado</span>'
+    :'<span class="badge badge-warn">Pendente</span>';
+  document.getElementById('orc-det-info').innerHTML=`
+    <div><label style="font-size:11px;color:var(--text3);text-transform:uppercase">Cliente</label><div style="font-weight:600">${o.cliente||'—'}</div></div>
+    <div><label style="font-size:11px;color:var(--text3);text-transform:uppercase">CNPJ</label><div>${o.cnpj||'—'}</div></div>
+    <div><label style="font-size:11px;color:var(--text3);text-transform:uppercase">Vendedor</label><div>${o.vendedor||'—'}</div></div>
+    <div><label style="font-size:11px;color:var(--text3);text-transform:uppercase">Data</label><div>${o.data}</div></div>
+    <div><label style="font-size:11px;color:var(--text3);text-transform:uppercase">Status</label><div>${statusBadge}</div></div>
+    ${o.pgto?`<div><label style="font-size:11px;color:var(--text3);text-transform:uppercase">Pagamento</label><div>${o.pgto}</div></div>`:''}
+  `;
+  document.getElementById('orc-det-itens').innerHTML=o.itens.map(it=>`
+    <tr>
+      <td style="text-align:center">${it.qtd}</td>
+      <td><strong>${it.nome}</strong> <span style="color:var(--text3)">${it.espec}</span></td>
+      <td style="text-align:right">${fmt(it.preco)}</td>
+      <td style="text-align:right;font-weight:600">${fmt(it.qtd*it.preco)}</td>
+    </tr>
+  `).join('');
+  document.getElementById('orc-det-total').textContent='Total: '+fmt(o.total);
+  document.getElementById('modal-orc-detalhes').classList.add('open');
+}
+
+function closeModalOrcDetalhes(){
+  document.getElementById('modal-orc-detalhes').classList.remove('open');
+}
+
+
+// ── GERENCIAR USUÁRIOS ─────────────────────────────────────────────────────
+
+function renderUsuarios(){
+  const el=document.querySelector('#tbl-usuarios tbody');
+  if(!el)return;
+  const usuarios=db.usuarios||PERFIS;
+  const senhas=Object.keys(usuarios);
+  if(!senhas.length){el.innerHTML='<tr><td colspan="4" class="empty">Nenhum usuário cadastrado.</td></tr>';return;}
+  el.innerHTML=senhas.map(senha=>{
+    const u=usuarios[senha];
+    const tipoBadge=u.tipo==='gestor'
+      ?'<span class="badge" style="background:#E6F1FB;color:#0C447C">Gestor</span>'
+      :'<span class="badge badge-ok">Vendedor</span>';
+    return`<tr>
+      <td>${tipoBadge}</td>
+      <td><strong>${u.nome}</strong></td>
+      <td style="font-family:monospace;color:var(--text3)">${senha}</td>
+      <td style="display:flex;gap:4px">
+        <button class="btn btn-sm" onclick="editarUsuario('${senha}')">✎ Editar</button>
+        <button class="btn btn-danger btn-sm" onclick="removerUsuario('${senha}')">✕</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function addUsuario(){
+  const tipo=document.getElementById('usr-tipo').value;
+  const nome=document.getElementById('usr-nome').value.trim();
+  const senha=document.getElementById('usr-senha').value.trim();
+  const fb=document.getElementById('usr-feedback');
+  if(!nome||!senha){fb.className='feedback err';fb.textContent='Preencha nome e senha.';return;}
+  if(!db.usuarios)db.usuarios=JSON.parse(JSON.stringify(PERFIS));
+  if(db.usuarios[senha]){fb.className='feedback err';fb.textContent='Essa senha já está em uso. Escolha outra.';return;}
+  db.usuarios[senha]={tipo,nome};
+  save();
+  fb.className='feedback ok';fb.textContent='Usuário "'+nome+'" adicionado com sucesso!';
+  document.getElementById('usr-nome').value='';
+  document.getElementById('usr-senha').value='';
+  renderUsuarios();
+}
+
+let _editUsuarioSenhaAtual=null;
+
+function editarUsuario(senhaAtual){
+  _editUsuarioSenhaAtual=senhaAtual;
+  const u=(db.usuarios||PERFIS)[senhaAtual];
+  document.getElementById('eu-nome').value=u.nome;
+  document.getElementById('eu-senha').value=senhaAtual;
+  document.getElementById('modal-edit-usuario').classList.add('open');
+}
+
+function closeModalEditUsuario(){
+  document.getElementById('modal-edit-usuario').classList.remove('open');
+  _editUsuarioSenhaAtual=null;
+}
+
+function salvarEditUsuario(){
+  if(!_editUsuarioSenhaAtual)return;
+  const novoNome=document.getElementById('eu-nome').value.trim();
+  const novaSenha=document.getElementById('eu-senha').value.trim();
+  if(!novoNome||!novaSenha){alert('Preencha nome e senha.');return;}
+  const u=db.usuarios[_editUsuarioSenhaAtual];
+  // Remove old key, add new one (in case senha changed)
+  delete db.usuarios[_editUsuarioSenhaAtual];
+  db.usuarios[novaSenha]={tipo:u.tipo,nome:novoNome};
+  save();
+  closeModalEditUsuario();
+  renderUsuarios();
+  alert('✓ Usuário atualizado!');
+}
+
+function removerUsuario(senha){
+  const u=(db.usuarios||PERFIS)[senha];
+  if(!confirm('Remover o usuário "'+u.nome+'"? Ele não conseguirá mais fazer login.'))return;
+  delete db.usuarios[senha];
+  save();
+  renderUsuarios();
+}
+
+// ── TROCAR PRÓPRIA SENHA (vendedor/gestor) ────────────────────────────────
+
+function abrirTrocarSenha(){
+  document.getElementById('ts-atual').value='';
+  document.getElementById('ts-nova').value='';
+  document.getElementById('ts-confirma').value='';
+  document.getElementById('ts-feedback').className='feedback';
+  document.getElementById('modal-trocar-senha').classList.add('open');
+}
+
+function closeModalTrocarSenha(){
+  document.getElementById('modal-trocar-senha').classList.remove('open');
+}
+
+function confirmarTrocaSenha(){
+  const atual=document.getElementById('ts-atual').value.trim();
+  const nova=document.getElementById('ts-nova').value.trim();
+  const confirma=document.getElementById('ts-confirma').value.trim();
+  const fb=document.getElementById('ts-feedback');
+
+  const usuarios=db.usuarios||PERFIS;
+  if(!usuarios[atual]){fb.className='feedback err';fb.textContent='Senha atual incorreta.';return;}
+  if(!nova||nova.length<4){fb.className='feedback err';fb.textContent='A nova senha deve ter pelo menos 4 caracteres.';return;}
+  if(nova!==confirma){fb.className='feedback err';fb.textContent='As senhas não coincidem.';return;}
+  if(usuarios[nova]){fb.className='feedback err';fb.textContent='Essa senha já está em uso por outro usuário.';return;}
+
+  const meuPerfil=usuarios[atual];
+  if(!db.usuarios)db.usuarios=JSON.parse(JSON.stringify(PERFIS));
+  delete db.usuarios[atual];
+  db.usuarios[nova]=meuPerfil;
+  save();
+  closeModalTrocarSenha();
+  alert('✓ Senha alterada com sucesso! Use a nova senha no próximo login.');
 }
 
 </script>
