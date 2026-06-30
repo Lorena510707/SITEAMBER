@@ -99,6 +99,7 @@ input:focus,select:focus{border-color:var(--verde);box-shadow:0 0 0 3px rgba(29,
   </div>
   <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
     <span id="last-save" style="font-size:11px;color:var(--text3)"></span>
+    <button class="btn btn-sm" onclick="forcarAtualizacao()" title="Buscar dados mais recentes">🔄</button>
     <button class="btn btn-sm" onclick="exportCSV()" title="Exportar estoque em CSV">⬇ CSV</button>
     <button class="btn btn-sm" style="background:#EAF3DE;color:#27500A;border-color:#C3E6B0" onclick="exportBackup()" title="Exportar backup completo">💾 Backup</button>
     <label class="btn btn-sm" style="background:#E6F1FB;color:#0C447C;border-color:#C3D9F5;cursor:pointer" title="Importar backup">
@@ -117,6 +118,7 @@ input:focus,select:focus{border-color:var(--verde);box-shadow:0 0 0 3px rgba(29,
   <button class="nav-btn" onclick="showTab('orcamento',this)">Orçamento</button>
   <button class="nav-btn col-gestor" onclick="showTab('compras',this)">Compras</button>
   <button class="nav-btn col-gestor" onclick="showTab('usuarios',this)">Usuários</button>
+  <button class="nav-btn col-gestor" onclick="showTab('retiradas',this)">Retirada</button>
 </nav>
 
 <main>
@@ -571,6 +573,12 @@ input:focus,select:focus{border-color:var(--verde);box-shadow:0 0 0 3px rgba(29,
       </div>
       <div class="field"><label>Data do pedido</label><input id="ped-data" type="date"></div>
     </div>
+    <div class="form-grid">
+      <div class="field" style="grid-column:1/-1">
+        <label>Data prevista para retirada</label>
+        <input id="ped-data-retirada" type="date">
+      </div>
+    </div>
     <!-- Boleto parcelas -->
     <div id="ped-boleto-fields" style="display:none;background:var(--amarelo);border-radius:var(--radius-sm);padding:12px;margin-bottom:12px;border:1px solid #FAC775;">
       <div style="font-size:12px;font-weight:600;color:var(--amarelo-text);margin-bottom:8px">Parcelas do boleto</div>
@@ -694,6 +702,40 @@ input:focus,select:focus{border-color:var(--verde);box-shadow:0 0 0 3px rgba(29,
     <div class="modal-footer">
       <button class="btn" onclick="closeModalEditUsuario()">Cancelar</button>
       <button class="btn btn-primary" onclick="salvarEditUsuario()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- RETIRADA DE PEDIDOS -->
+<div id="tab-retiradas" class="section">
+  <div class="search-bar">
+    <input id="ret-busca" placeholder="Buscar cliente..." oninput="renderRetiradas()">
+    <select id="ret-status" onchange="renderRetiradas()">
+      <option value="">Todos os status</option>
+      <option value="pendente">Aguardando retirada</option>
+      <option value="retirado">Já retirado</option>
+    </select>
+    <input id="ret-data" type="date" onchange="renderRetiradas()" title="Filtrar por data de retirada">
+    <button class="btn btn-sm" onclick="limparFiltrosRetiradas()">Limpar filtros</button>
+  </div>
+  <div class="metrics" id="ret-metrics" style="margin-bottom:16px"></div>
+  <div class="card">
+    <div class="card-header"><span class="card-title">Pedidos para retirada</span></div>
+    <div class="table-wrap">
+      <table id="tbl-retiradas">
+        <thead><tr>
+          <th style="width:90px">Nº Orç.</th>
+          <th style="width:80px">Data pedido</th>
+          <th style="width:100px">Data retirada</th>
+          <th>Cliente</th>
+          <th style="width:80px">Vendedor</th>
+          <th style="width:70px">Itens</th>
+          <th style="width:90px">Total</th>
+          <th style="width:100px">Status</th>
+          <th style="width:140px"></th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
     </div>
   </div>
 </div>
@@ -1089,13 +1131,14 @@ function loadFromLocalStorage(){
     if (!db.movs) db.movs = [];
     if (!db.produtos) db.produtos = [];
     if (!db.orcamentos) db.orcamentos = [];
-    if (!db.usuarios) db.usuarios = JSON.parse(JSON.stringify(PERFIS));
+    if (!db.usuarios) db.usuarios = JSON.parse(JSON.stringify(PERFIS)); if (!db.retiradas) db.retiradas = [];
   } else {
     db.produtos=[...DUCHA,...CABO,...OUTROS];
     db.movs=[...MOVS_INIT];
     db.boletos=[...BOLETOS_INIT];
     db.compras=[...COMPRAS_INIT];
     db.orcamentos=[];
+    db.retiradas=[];
     db.usuarios=JSON.parse(JSON.stringify(PERFIS));
   }
   if (perfilAtual) renderAll();
@@ -1142,7 +1185,7 @@ function showTab(id,btn){
   renderAll();
 }
 
-function renderAll(){renderMetrics();renderAlertas();renderLinhas();renderEstoque();renderHistorico();renderBoletos();if(typeof renderCompras==='function')renderCompras();populateProdutoSelect();populateRespSelect();populateMesSelect();renderOrcHistorico();if(typeof renderUsuarios==='function')renderUsuarios();}
+function renderAll(){renderMetrics();renderAlertas();renderLinhas();renderEstoque();renderHistorico();renderBoletos();if(typeof renderCompras==='function')renderCompras();populateProdutoSelect();populateRespSelect();populateMesSelect();renderOrcHistorico();if(typeof renderUsuarios==='function')renderUsuarios();if(typeof renderRetiradas==='function')renderRetiradas();}
 
 function renderMetrics(){
   const total=db.produtos.length;
@@ -1851,8 +1894,8 @@ function importBackup(event) {
       if (!db.movs) db.movs = [];
       if (!db.produtos) db.produtos = [];
       if (!db.orcamentos) db.orcamentos = [];
-    if (!db.usuarios) db.usuarios = JSON.parse(JSON.stringify(PERFIS));
-      if (!db.usuarios) db.usuarios = JSON.parse(JSON.stringify(PERFIS));
+    if (!db.usuarios) db.usuarios = JSON.parse(JSON.stringify(PERFIS)); if (!db.retiradas) db.retiradas = [];
+      if (!db.usuarios) db.usuarios = JSON.parse(JSON.stringify(PERFIS)); if (!db.retiradas) db.retiradas = [];
       save();
       renderAll();
       alert('✓ Backup restaurado com sucesso!\n\nProdutos: ' + db.produtos.length + '\nMovimentações: ' + db.movs.length + '\nRecebimentos: ' + db.boletos.length);
@@ -2176,6 +2219,7 @@ function renderOrcHistorico(){
 function salvarOrcamentoHistorico(){
   if(!orcItems.length)return null;
   if(!db.orcamentos)db.orcamentos=[];
+    db.retiradas=[];
   const numOrcamento='ORC-'+new Date().getFullYear()+
     ('0'+(new Date().getMonth()+1)).slice(-2)+
     ('0'+new Date().getDate()).slice(-2)+'-'+
@@ -2269,8 +2313,10 @@ function closeModalPedido(){
 function finalizarPedido(){
   const pgto=document.getElementById('ped-pgto').value;
   const dataRaw=document.getElementById('ped-data').value;
+  const dataRetiradaRaw=document.getElementById('ped-data-retirada').value;
   const obs=document.getElementById('ped-obs').value.trim();
   const dataStr=dataRaw?new Date(dataRaw+'T12:00:00').toLocaleDateString('pt-BR'):new Date().toLocaleDateString('pt-BR');
+  const dataRetiradaStr=dataRetiradaRaw?new Date(dataRetiradaRaw+'T12:00:00').toLocaleDateString('pt-BR'):'—';
   const cli=document.getElementById('orc-cli').value||'—';
   const cnpj=document.getElementById('orc-cnpj').value||'—';
   const resp=perfilAtual?perfilAtual.nome:'—';
@@ -2320,16 +2366,34 @@ function finalizarPedido(){
 
   // 3. Mark orcamento as confirmed
   const orcIdx=window._pedidoOrcIdx;
+  let numOrc='—';
   if(orcIdx!=null&&db.orcamentos[orcIdx]){
     db.orcamentos[orcIdx].status='Confirmado';
     db.orcamentos[orcIdx].pgto=pgto;
+    numOrc=db.orcamentos[orcIdx].num||'—';
   }
+
+  // 4. Add to retiradas (gestor control)
+  if(!db.retiradas)db.retiradas=[];
+  db.retiradas.push({
+    num:numOrc,
+    dataPedido:dataStr,
+    dataRetirada:dataRetiradaStr,
+    cliente:cli,
+    cnpj,
+    vendedor:resp,
+    itens:orcItems.map(i=>({...i})),
+    total,
+    pgto,
+    status:'pendente',
+    obs:obs||''
+  });
 
   save();
   closeModalPedido();
   limparOrc();
   renderAll();
-  alert('✓ Pedido confirmado! Estoque atualizado e lançado nos recebimentos.');
+  alert('✓ Pedido confirmado! Estoque atualizado, lançado nos recebimentos e adicionado à Retirada de Pedidos.');
 }
 
 
@@ -2477,6 +2541,153 @@ function confirmarTrocaSenha(){
   save();
   closeModalTrocarSenha();
   alert('✓ Senha alterada com sucesso! Use a nova senha no próximo login.');
+}
+
+
+function forcarAtualizacao(){
+  document.getElementById('last-save').textContent='Atualizando...';
+  try {
+    if (typeof firebaseDB !== 'undefined' && firebaseDB) {
+      firebaseDB.ref('amber').once('value').then(function(snapshot){
+        const data = snapshot.val();
+        if (data) {
+          db = data;
+          if (!db.compras) db.compras = [];
+          if (!db.boletos) db.boletos = [];
+          if (!db.movs) db.movs = [];
+          if (!db.produtos) db.produtos = [];
+          if (!db.orcamentos) db.orcamentos = [];
+          if (!db.usuarios) db.usuarios = JSON.parse(JSON.stringify(PERFIS)); if (!db.retiradas) db.retiradas = [];
+          if (!db.retiradas) db.retiradas = [];
+        }
+        renderAll();
+        document.getElementById('last-save').textContent = 'Atualizado às ' + new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+      });
+    } else {
+      document.getElementById('last-save').textContent = 'Sem conexão';
+    }
+  } catch(e) {
+    document.getElementById('last-save').textContent = 'Erro ao atualizar';
+  }
+}
+
+
+// ── RETIRADA DE PEDIDOS ────────────────────────────────────────────────────
+
+function limparFiltrosRetiradas(){
+  const b=document.getElementById('ret-busca');if(b)b.value='';
+  const s=document.getElementById('ret-status');if(s)s.value='';
+  const d=document.getElementById('ret-data');if(d)d.value='';
+  renderRetiradas();
+}
+
+function renderRetiradas(){
+  const el=document.querySelector('#tbl-retiradas tbody');
+  if(!el)return;
+  if(!db.retiradas)db.retiradas=[];
+
+  const busca=(document.getElementById('ret-busca')||{value:''}).value.toLowerCase();
+  const statusF=(document.getElementById('ret-status')||{value:''}).value;
+  const dataF=(document.getElementById('ret-data')||{value:''}).value;
+
+  let retiradas=[...db.retiradas].sort((a,b)=>parseDateBR(a.dataRetirada)-parseDateBR(b.dataRetirada));
+
+  retiradas=retiradas.filter(r=>{
+    if(busca&&!(r.cliente||'').toLowerCase().includes(busca))return false;
+    if(statusF&&r.status!==statusF.replace('pendente','pendente').replace('retirado','retirado'))return false;
+    if(statusF==='pendente'&&r.status!=='pendente')return false;
+    if(statusF==='retirado'&&r.status!=='retirado')return false;
+    if(dataF){
+      const rd=r.dataRetirada;
+      if(rd==='—')return false;
+      const p=rd.split('/');
+      const rdFormatted=p.length===3?p[2]+'-'+p[1]+'-'+p[0]:'';
+      if(rdFormatted!==dataF)return false;
+    }
+    return true;
+  });
+
+  // Metrics
+  const totalPendente=db.retiradas.filter(r=>r.status==='pendente').length;
+  const totalRetirado=db.retiradas.filter(r=>r.status==='retirado').length;
+  const valorPendente=db.retiradas.filter(r=>r.status==='pendente').reduce((s,r)=>s+r.total,0);
+  const metricsEl=document.getElementById('ret-metrics');
+  if(metricsEl){
+    metricsEl.innerHTML=`
+      <div class="metric"><div class="metric-label">Aguardando retirada</div><div class="metric-value amber">${totalPendente}</div></div>
+      <div class="metric"><div class="metric-label">Já retirados</div><div class="metric-value green">${totalRetirado}</div></div>
+      <div class="metric"><div class="metric-label">Valor pendente</div><div class="metric-value" style="font-size:16px">${fmt(valorPendente)}</div></div>
+    `;
+  }
+
+  if(!retiradas.length){el.innerHTML='<tr><td colspan="9" class="empty">Nenhum pedido para retirada.</td></tr>';return;}
+
+  el.innerHTML=retiradas.map(r=>{
+    const realIdx=db.retiradas.indexOf(r);
+    const statusBadge=r.status==='retirado'
+      ?'<span class="badge badge-ok">Retirado</span>'
+      :'<span class="badge badge-warn">Aguardando</span>';
+    return`<tr>
+      <td style="color:var(--text3);font-size:11px">${r.num}</td>
+      <td style="color:var(--text3);white-space:nowrap">${r.dataPedido}</td>
+      <td style="white-space:nowrap;font-weight:600">${r.dataRetirada}</td>
+      <td><strong>${r.cliente}</strong></td>
+      <td>${r.vendedor}</td>
+      <td style="text-align:center"><span class="badge" style="background:#E6F1FB;color:#0C447C">${r.itens.length}</span></td>
+      <td><strong>${fmt(r.total)}</strong></td>
+      <td>${statusBadge}</td>
+      <td style="display:flex;gap:4px;flex-wrap:wrap">
+        <button class="btn btn-sm" style="font-size:11px" onclick="verDetalhesRetirada(${realIdx})">👁</button>
+        ${r.status==='pendente'?`<button class="btn btn-primary btn-sm" style="font-size:11px" onclick="marcarRetirado(${realIdx})">✓ Retirado</button>`:''}
+        <button class="btn btn-danger btn-sm" onclick="removerRetirada(${realIdx})">✕</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function marcarRetirado(idx){
+  const r=db.retiradas[idx];
+  if(!confirm('Confirmar retirada do pedido de '+r.cliente+'?'))return;
+  r.status='retirado';
+  r.dataRetiradaReal=new Date().toLocaleDateString('pt-BR');
+  save();
+  renderRetiradas();
+}
+
+function removerRetirada(idx){
+  if(!confirm('Remover este registro de retirada?'))return;
+  db.retiradas.splice(idx,1);
+  save();
+  renderRetiradas();
+}
+
+function verDetalhesRetirada(idx){
+  const r=db.retiradas[idx];
+  if(!r)return;
+  document.getElementById('orc-det-titulo').textContent='Pedido '+r.num+' — Retirada';
+  const statusBadge=r.status==='retirado'
+    ?'<span class="badge badge-ok">Retirado</span>'
+    :'<span class="badge badge-warn">Aguardando retirada</span>';
+  document.getElementById('orc-det-info').innerHTML=`
+    <div><label style="font-size:11px;color:var(--text3);text-transform:uppercase">Cliente</label><div style="font-weight:600">${r.cliente}</div></div>
+    <div><label style="font-size:11px;color:var(--text3);text-transform:uppercase">CNPJ</label><div>${r.cnpj||'—'}</div></div>
+    <div><label style="font-size:11px;color:var(--text3);text-transform:uppercase">Vendedor</label><div>${r.vendedor}</div></div>
+    <div><label style="font-size:11px;color:var(--text3);text-transform:uppercase">Data do pedido</label><div>${r.dataPedido}</div></div>
+    <div><label style="font-size:11px;color:var(--text3);text-transform:uppercase">Data de retirada</label><div style="font-weight:600">${r.dataRetirada}</div></div>
+    <div><label style="font-size:11px;color:var(--text3);text-transform:uppercase">Status</label><div>${statusBadge}</div></div>
+    <div><label style="font-size:11px;color:var(--text3);text-transform:uppercase">Pagamento</label><div>${r.pgto}</div></div>
+    ${r.obs?`<div style="grid-column:1/-1"><label style="font-size:11px;color:var(--text3);text-transform:uppercase">Observação</label><div>${r.obs}</div></div>`:''}
+  `;
+  document.getElementById('orc-det-itens').innerHTML=r.itens.map(it=>`
+    <tr>
+      <td style="text-align:center">${it.qtd}</td>
+      <td><strong>${it.nome}</strong> <span style="color:var(--text3)">${it.espec}</span></td>
+      <td style="text-align:right">${fmt(it.preco)}</td>
+      <td style="text-align:right;font-weight:600">${fmt(it.qtd*it.preco)}</td>
+    </tr>
+  `).join('');
+  document.getElementById('orc-det-total').textContent='Total: '+fmt(r.total);
+  document.getElementById('modal-orc-detalhes').classList.add('open');
 }
 
 </script>
